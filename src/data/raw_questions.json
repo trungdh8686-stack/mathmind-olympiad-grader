@@ -1,0 +1,569 @@
+[
+  {
+    "id": 1,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "22",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 2,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "56",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 3,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "210",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 4,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "4.983",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 5,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "256",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 6,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "390",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Số thứ 15 = 189, số thứ 16 = 201; tổng = 390."
+  },
+  {
+    "id": 7,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "1.110",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 8,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "Cần xác minh hình",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  },
+  {
+    "id": 9,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "36",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "3 lựa chọn hàng đơn vị × 4 hàng trăm × 3 hàng chục = 36."
+  },
+  {
+    "id": 10,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "10 (nếu lưới 3×2)",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  },
+  {
+    "id": 11,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "Z",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 12,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "Thứ Ba",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 13,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "2.130",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 14,
+    "part": 1,
+    "partTitle": "Câu 1–14",
+    "correctAnswer": "3.700",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 15,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "335",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 16,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "10",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 17,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "Cần xác minh đề",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  },
+  {
+    "id": 18,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "8.500",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 19,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "41",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 20,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "77",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 21,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "96",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 22,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "17",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "17 + 18 + 19 = 54."
+  },
+  {
+    "id": 23,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "Cần xác minh hình",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  },
+  {
+    "id": 24,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "43",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 25,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "30",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "12 + 9 × 2 = 30."
+  },
+  {
+    "id": 26,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "63.333.327",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 27,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "Số lẻ",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 28,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "8",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 29,
+    "part": 2,
+    "partTitle": "Câu 15–29",
+    "correctAnswer": "128",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 30,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "189",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 31,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "16",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Ví dụ 497 và 513 có hiệu 16."
+  },
+  {
+    "id": 32,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "420 cm²",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Hai cạnh nguyên 20 cm và 21 cm; diện tích 420 cm²."
+  },
+  {
+    "id": 33,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "24.700",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 34,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "12.344.321",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 35,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "Thứ Ba",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "11/02/2020 là thứ Ba."
+  },
+  {
+    "id": 36,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "875",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "980 − 105 = 875."
+  },
+  {
+    "id": 37,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "20",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 38,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "899.991",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 39,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "133",
+    "statusText": "Chưa làm",
+    "status": "unanswered",
+    "shortExplanation": ""
+  },
+  {
+    "id": 40,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "190 cặp",
+    "statusText": "Chưa làm",
+    "status": "unanswered",
+    "shortExplanation": ""
+  },
+  {
+    "id": 41,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "44",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 42,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "18",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Có 9 số tận cùng bằng 8 và 9 số bắt đầu bằng 8."
+  },
+  {
+    "id": 43,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "9.000",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 44,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "1.830",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "976 + 854 = 1.830."
+  },
+  {
+    "id": 45,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "17",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "614 − 597 = 17."
+  },
+  {
+    "id": 46,
+    "part": 3,
+    "partTitle": "Câu 30–46",
+    "correctAnswer": "105",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 47,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "2.880 cm",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "100 × (8 × 4) − 80 × 4 = 2.880 cm."
+  },
+  {
+    "id": 48,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "67",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 49,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "24",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 50,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "960",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 51,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "952",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 52,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "21",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Có thể chọn tối đa 20 số không có cặp hiệu 10; số thứ 21 bảo đảm xuất hiện."
+  },
+  {
+    "id": 53,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "68",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Có thể chọn 67 số không chia hết cho 3 mà chưa có tích chia hết cho 6; cần 68."
+  },
+  {
+    "id": 54,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "Số chẵn",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 55,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "22",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 56,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "21",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 57,
+    "part": 4,
+    "partTitle": "Câu 47–57",
+    "correctAnswer": "Cần xác minh hình",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  },
+  {
+    "id": 58,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "3",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Tổng 1.590 USD, đổi tối đa 3 tờ 500 USD."
+  },
+  {
+    "id": 59,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "20.398",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Số chẵn nhỏ nhất là 20.398."
+  },
+  {
+    "id": 60,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "89",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 61,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "4",
+    "statusText": "Đúng theo ảnh",
+    "status": "correct",
+    "shortExplanation": ""
+  },
+  {
+    "id": 62,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "6",
+    "statusText": "Sai / cần sửa",
+    "status": "wrong",
+    "shortExplanation": "Đếm các cách đi không đặt chân lên bậc 4 và 7: 6 cách."
+  },
+  {
+    "id": 63,
+    "part": 5,
+    "partTitle": "Câu 58–63",
+    "correctAnswer": "Cần xác minh hình",
+    "statusText": "Cần xác minh",
+    "status": "need_verify",
+    "shortExplanation": ""
+  }
+]
