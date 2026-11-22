@@ -306,7 +306,7 @@ export const App: React.FC = () => {
                               {item.category}
                             </td>
                             <td className="py-3 px-6 text-center text-sm font-semibold">
-                              <span className={item.status === 'wrong' ? 'text-rose-600 line-through' : 'text-slate-800'}>
+                              <span className={item.status === 'wrong' ? 'text-rose-600 line-through decoration-rose-500 decoration-2 font-bold' : 'text-slate-800'}>
                                 {item.studentAnswer}
                               </span>
                             </td>

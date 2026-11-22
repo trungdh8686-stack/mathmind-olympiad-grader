@@ -156,7 +156,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
           <div>
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đáp án Ruby ghi</div>
             <div className={`text-lg sm:text-xl font-extrabold mt-0.5 ${
-              isWrong ? 'text-rose-600 line-through' : 'text-slate-800'
+              isWrong ? 'text-rose-600 line-through decoration-rose-500 decoration-2' : 'text-slate-800'
             }`}>
               {question.studentAnswer}
             </div>
