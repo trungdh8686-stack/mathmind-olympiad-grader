@@ -12,25 +12,46 @@ export const MathView: React.FC<MathViewProps> = ({ text, className = '' }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Check if text has LaTeX delimiters like $...$
+    if (!text) {
+      containerRef.current.textContent = '';
+      return;
+    }
+
+    // If no math delimiters, render directly as plain text
     if (!text.includes('$')) {
       containerRef.current.textContent = text;
       return;
     }
 
     try {
-      // Split by $ and alternate between normal text and math
       const parts = text.split('$');
       containerRef.current.innerHTML = '';
 
       parts.forEach((part, index) => {
         if (index % 2 === 1) {
-          // Math expression
+          // Odd indices are math blocks
+          // Check if math contains Vietnamese diacritics that might break raw KaTeX
+          const hasVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/.test(part);
+          
           const span = document.createElement('span');
+          span.className = 'inline-math font-medium';
+
           try {
-            katex.render(part, span, { throwOnError: false, displayMode: false });
+            // If it contains Vietnamese words without \text, wrap Vietnamese words inside \text{}
+            let mathExpr = part.trim();
+            if (hasVietnamese && !mathExpr.includes('\\text')) {
+              // Wrap with text mode or display directly as styled text
+              span.textContent = part;
+              span.className = 'font-semibold text-slate-800';
+            } else {
+              katex.render(mathExpr, span, {
+                throwOnError: false,
+                displayMode: false,
+                strict: false
+              });
+            }
           } catch {
-            span.textContent = `$${part}$`;
+            span.textContent = part;
           }
           containerRef.current?.appendChild(span);
         } else if (part) {
