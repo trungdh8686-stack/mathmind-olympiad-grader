@@ -22,6 +22,7 @@ interface QuestionCardProps {
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed }) => {
+  // Wrong questions start expanded; correct questions can be expanded with 1 click
   const [isExpanded, setIsExpanded] = useState<boolean>(question.status === 'wrong');
   const [retryInput, setRetryInput] = useState<string>('');
   const [isFixedLocally, setIsFixedLocally] = useState<boolean>(false);
@@ -67,20 +68,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
   const isUnanswered = question.status === 'unanswered' && !isFixedLocally;
 
   let cardBorder = 'border-slate-200 hover:border-slate-300';
-  let badgeBg = 'bg-slate-100 text-slate-700';
 
   if (isCorrect) {
     cardBorder = 'border-emerald-200 bg-white hover:border-emerald-300';
-    badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
   } else if (isWrong) {
-    cardBorder = 'border-rose-200 bg-rose-50/20 hover:border-rose-300 shadow-sm';
-    badgeBg = 'bg-rose-50 text-rose-700 border-rose-200';
+    cardBorder = 'border-rose-200 bg-rose-50/15 hover:border-rose-300 shadow-xs';
   } else if (isVerify) {
-    cardBorder = 'border-amber-200 bg-amber-50/20 hover:border-amber-300';
-    badgeBg = 'bg-amber-50 text-amber-700 border-amber-200';
+    cardBorder = 'border-amber-200 bg-amber-50/15 hover:border-amber-300';
   } else if (isUnanswered) {
-    cardBorder = 'border-purple-200 bg-purple-50/20 hover:border-purple-300';
-    badgeBg = 'bg-purple-50 text-purple-700 border-purple-200';
+    cardBorder = 'border-purple-200 bg-purple-50/15 hover:border-purple-300';
   }
 
   return (
@@ -88,18 +84,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
       {/* Top row: Number, Title, Badges */}
       <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm shadow-sm">
+          <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm shadow-xs shrink-0">
             #{question.id < 10 ? `0${question.id}` : question.id}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">
                 {question.partTitle}
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
                 {question.category}
               </span>
-              <span className="hidden sm:inline-flex text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
                 {question.difficulty}
               </span>
             </div>
@@ -110,28 +106,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
         </div>
 
         {/* Status Indicator Badge */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isCorrect && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>{isFixedLocally ? 'Đã sửa đúng! 🎉' : 'Đúng theo ảnh'}</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{isFixedLocally ? 'Ruby đã sửa đúng! 🎉' : 'Đúng theo ảnh'}</span>
             </div>
           )}
           {isWrong && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-rose-100 text-rose-800 border border-rose-200 animate-pulse">
-              <XCircle className="w-4 h-4 text-rose-600" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-rose-100 text-rose-800 border border-rose-200 whitespace-nowrap animate-pulse">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>Sai / cần sửa</span>
             </div>
           )}
           {isVerify && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-              <HelpCircle className="w-4 h-4 text-amber-600" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+              <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>Cần xác minh</span>
             </div>
           )}
           {isUnanswered && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-              <Clock className="w-4 h-4 text-purple-600" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-purple-100 text-purple-800 border border-purple-200 whitespace-nowrap">
+              <Clock className="w-4 h-4 text-purple-600 shrink-0" />
               <span>Chưa làm</span>
             </div>
           )}
@@ -144,8 +140,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
           <MathView text={question.question} />
         </div>
         {question.keywords && (
-          <div className="text-xs text-slate-500 font-medium px-1 flex items-center gap-1.5">
-            <span className="font-bold text-slate-600">Từ khóa song ngữ:</span>
+          <div className="text-xs text-slate-500 font-medium px-1 flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-slate-600 whitespace-nowrap">Từ khóa song ngữ:</span>
             <span>{question.keywords}</span>
           </div>
         )}
@@ -155,17 +151,17 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 pb-4">
         {/* Student's answer */}
         <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-          isWrong ? 'bg-rose-50/60 border-rose-200' : 'bg-slate-50 border-slate-200'
+          isWrong ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
         }`}>
           <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đáp án con ghi</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đáp án Ruby ghi</div>
             <div className={`text-lg sm:text-xl font-extrabold mt-0.5 ${
               isWrong ? 'text-rose-600 line-through' : 'text-slate-800'
             }`}>
               {question.studentAnswer}
             </div>
           </div>
-          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-xs shrink-0">
             {isWrong ? (
               <XCircle className="w-5 h-5 text-rose-500" />
             ) : isCorrect ? (
@@ -177,14 +173,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
         </div>
 
         {/* Correct answer */}
-        <div className="p-4 rounded-2xl border bg-emerald-50/60 border-emerald-200 flex items-center justify-between">
+        <div className="p-4 rounded-2xl border bg-emerald-50/70 border-emerald-200 flex items-center justify-between">
           <div>
             <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Đáp án đúng chuẩn</div>
             <div className="text-lg sm:text-xl font-extrabold text-emerald-800 mt-0.5">
               {question.correctAnswer}
             </div>
           </div>
-          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
             <Check className="w-5 h-5" />
           </div>
         </div>
@@ -208,12 +204,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
         <div className="mb-4 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-indigo-900">
-              <RotateCcw className="w-4 h-4 text-indigo-600" />
-              <span>Con thử giải lại câu này nhé!</span>
+              <RotateCcw className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Ruby thử giải lại câu này nhé!</span>
             </div>
             {isFixedLocally && (
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                Xuất sắc! Đã sửa đúng! 🌟
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                Xuất sắc! Con đã sửa đúng! 🌟
               </span>
             )}
           </div>
@@ -231,7 +227,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
             />
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-sm active:scale-95"
+              className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer whitespace-nowrap"
             >
               Kiểm tra
             </button>
@@ -239,22 +235,22 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
 
           {retryFeedback === 'incorrect' && (
             <p className="text-xs text-rose-600 font-medium">
-              Chưa chính xác rồi, con xem gợi ý các bước giải chi tiết phía dưới để tính lại nhé! 💪
+              Chưa chính xác rồi Ruby ơi, con xem các bước giải chi tiết phía dưới để tính lại nhé! 💪
             </p>
           )}
         </div>
       )}
 
-      {/* Accordion Toggle for Detailed Solution */}
+      {/* Accordion Toggle for Detailed Solution (Available for ALL questions: both correct and wrong!) */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between pt-3 text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors border-t border-slate-100"
+        className="w-full flex items-center justify-between pt-3 text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors border-t border-slate-100 cursor-pointer"
       >
         <div className="flex items-center gap-1.5">
-          <BookOpen className="w-4 h-4" />
-          <span>{isExpanded ? 'Thu gọn hướng dẫn giải' : 'Xem hướng dẫn giải chi tiết chuẩn sư phạm'}</span>
+          <BookOpen className="w-4 h-4 shrink-0" />
+          <span>{isExpanded ? 'Thu gọn hướng dẫn giải' : 'Xem hướng dẫn giải chi tiết chuẩn phương pháp SGK & Olympic'}</span>
         </div>
-        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        {isExpanded ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
       </button>
 
       {/* Detailed Solution Steps */}
@@ -262,14 +258,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
         <div className="mt-4 pt-4 border-t border-slate-100 space-y-4 animate-in fade-in duration-200">
           <div className="space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Các bước giải chi tiết chuẩn SGK & Olympic:
+              Các bước giải chi tiết chuẩn phương pháp sư phạm:
             </div>
-            <div className="space-y-2 pl-2 border-l-2 border-indigo-200">
-              {question.solutionSteps.map((step, idx) => (
-                <div key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
-                  <MathView text={step} />
+            <div className="space-y-2 pl-3 border-l-2 border-indigo-300">
+              {question.solutionSteps && question.solutionSteps.length > 0 ? (
+                question.solutionSteps.map((step, idx) => (
+                  <div key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                    <MathView text={step} />
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                  <p>Đáp số chính xác: <strong className="text-emerald-700">{question.correctAnswer}</strong>.</p>
+                  <p className="text-slate-500 mt-1">{question.explanation}</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

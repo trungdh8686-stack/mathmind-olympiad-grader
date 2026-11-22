@@ -9,7 +9,8 @@ import {
   BrainCircuit,
   Sparkles,
   Target,
-  ArrowRight
+  ArrowRight,
+  BookOpen
 } from 'lucide-react';
 import { MathQuestion, TestSummary } from '../data/mockData';
 
@@ -26,10 +27,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   activeFilter,
   onSelectFilter
 }) => {
+  const handleCardClick = (filter: string) => {
+    onSelectFilter(filter);
+    setTimeout(() => {
+      document.getElementById('question-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  };
+
   // Category calculations
   const categoryStats: Record<string, { total: number; correct: number; wrong: number }> = {};
   questions.forEach(q => {
-    // simplified category grouping
     let group = 'Số học & Phép tính';
     if (q.category.includes('Dãy') || q.category.includes('Quy luật')) group = 'Dãy số & Quy luật';
     else if (q.category.includes('Cấu tạo') || q.category.includes('Chữ số')) group = 'Cấu tạo số & Chữ số';
@@ -53,20 +60,26 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur-md text-blue-100 border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Báo Cáo Thành Tích Học Tập Cuối Tuần</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-blue-100 border border-white/20">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Báo Cáo Thành Tích Học Tập</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                <BookOpen className="w-3 h-3" />
+                <span>{summary.testDate}</span>
+              </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
               Chúc mừng {summary.studentName}! 🎉
             </h2>
-            <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
-              Con đã xuất sắc hoàn thành <strong className="text-white font-bold">{summary.totalQuestions - summary.unansweredCount}/{summary.totalQuestions} câu hỏi</strong> trong bộ đề rèn luyện tư duy Olympic Tuần 11. Cùng khám phá bảng thành tích và giải lại 17 câu thử thách nhé!
+            <p className="text-sm sm:text-base text-blue-100 leading-relaxed font-normal">
+              Con đã xuất sắc hoàn thành <strong className="text-white font-bold">{summary.totalQuestions - summary.unansweredCount}/{summary.totalQuestions} câu hỏi</strong> trong bộ đề rèn luyện tư duy Olympic. Hãy bấm vào các thẻ bên dưới để xem hướng dẫn giải chi tiết chuẩn SGK và thử giải lại 17 câu thử thách nhé!
             </p>
           </div>
 
           {/* Quick Score Badge */}
-          <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:p-5 rounded-2xl self-start md:self-auto">
+          <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:p-5 rounded-2xl shrink-0 self-start md:self-auto">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-slate-900 shadow-md">
               <Award className="w-8 h-8" />
             </div>
@@ -85,12 +98,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
       </div>
 
-      {/* 4 Interactive Status Metric Cards */}
+      {/* 4 Interactive Status Metric Cards - Click scrolls to question list */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* Correct */}
         <button
-          onClick={() => onSelectFilter('correct')}
-          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden ${
+          onClick={() => handleCardClick('correct')}
+          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
             activeFilter === 'correct'
               ? 'bg-emerald-50 border-emerald-400 shadow-md ring-2 ring-emerald-500/20'
               : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40 hover:shadow-sm'
@@ -104,17 +117,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               {((summary.correctCount / summary.totalQuestions) * 100).toFixed(0)}%
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900">{summary.correctCount} câu</div>
-          <div className="text-xs sm:text-sm font-medium text-slate-600 mt-1 flex items-center justify-between">
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{summary.correctCount} câu</div>
+          <div className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center justify-between">
             <span>Đúng theo ảnh</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            <span className="text-emerald-600 text-xs font-bold flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Xem chi tiết <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </button>
 
         {/* Wrong / Need Review */}
         <button
-          onClick={() => onSelectFilter('wrong')}
-          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden ${
+          onClick={() => handleCardClick('wrong')}
+          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
             activeFilter === 'wrong'
               ? 'bg-rose-50 border-rose-400 shadow-md ring-2 ring-rose-500/20'
               : 'bg-white border-slate-200 hover:border-rose-300 hover:bg-rose-50/40 hover:shadow-sm'
@@ -124,21 +139,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
               <XCircle className="w-6 h-6" />
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 animate-pulse">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 animate-pulse">
               Ưu tiên sửa
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-rose-600">{summary.wrongCount} câu</div>
-          <div className="text-xs sm:text-sm font-medium text-slate-600 mt-1 flex items-center justify-between">
+          <div className="text-2xl sm:text-3xl font-extrabold text-rose-600">{summary.wrongCount} câu</div>
+          <div className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center justify-between">
             <span>Sai / cần sửa</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            <span className="text-rose-600 text-xs font-bold flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Xem chi tiết <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </button>
 
         {/* Need Verification */}
         <button
-          onClick={() => onSelectFilter('need_verify')}
-          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden ${
+          onClick={() => handleCardClick('need_verify')}
+          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
             activeFilter === 'need_verify'
               ? 'bg-amber-50 border-amber-400 shadow-md ring-2 ring-amber-500/20'
               : 'bg-white border-slate-200 hover:border-amber-300 hover:bg-amber-50/40 hover:shadow-sm'
@@ -152,17 +169,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Xem lại hình
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900">{summary.verifyCount} câu</div>
-          <div className="text-xs sm:text-sm font-medium text-slate-600 mt-1 flex items-center justify-between">
-            <span>Cần xác minh đề/hình</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{summary.verifyCount} câu</div>
+          <div className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center justify-between">
+            <span>Cần xác minh</span>
+            <span className="text-amber-600 text-xs font-bold flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Xem chi tiết <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </button>
 
         {/* Unanswered */}
         <button
-          onClick={() => onSelectFilter('unanswered')}
-          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden ${
+          onClick={() => handleCardClick('unanswered')}
+          className={`text-left p-5 rounded-2xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
             activeFilter === 'unanswered'
               ? 'bg-purple-50 border-purple-400 shadow-md ring-2 ring-purple-500/20'
               : 'bg-white border-slate-200 hover:border-purple-300 hover:bg-purple-50/40 hover:shadow-sm'
@@ -176,18 +195,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Chưa điền
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900">{summary.unansweredCount} câu</div>
-          <div className="text-xs sm:text-sm font-medium text-slate-600 mt-1 flex items-center justify-between">
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{summary.unansweredCount} câu</div>
+          <div className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center justify-between">
             <span>Chưa làm bài</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            <span className="text-purple-600 text-xs font-bold flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Xem chi tiết <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </button>
       </div>
 
-      {/* Skills Radar & Teacher Pedagogical Review Grid */}
+      {/* Skills Radar & Teacher Review */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Category Breakdown (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-5">
+        <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
@@ -197,14 +218,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <h3 className="text-base sm:text-lg font-bold text-slate-900">
                   Phân Tích Năng Lực Theo Chuyên Đề
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-500">
-                  Tỷ lệ làm đúng trên từng nhóm kiến thức Toán học
+                <p className="text-xs text-slate-500">
+                  Tỷ lệ làm đúng trên từng nhóm kiến thức Toán học Olympic
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
             {Object.entries(categoryStats).map(([name, stat]) => {
               const pct = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
               let barColor = 'bg-blue-600';
@@ -216,7 +237,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <div key={name} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
                     <span className="truncate pr-2">{name}</span>
-                    <span className="text-slate-900 font-bold">{stat.correct}/{stat.total} câu ({pct}%)</span>
+                    <span className="text-slate-900 font-bold whitespace-nowrap">{stat.correct}/{stat.total} câu ({pct}%)</span>
                   </div>
                   <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
@@ -230,34 +251,34 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
 
-        {/* Pedagogical Advice & Encouragement (1 col) */}
-        <div className="bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 rounded-3xl p-6 sm:p-7 border border-indigo-100/80 shadow-sm space-y-4 flex flex-col justify-between">
+        {/* Pedagogical Advice for Ruby (1 col) */}
+        <div className="bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 rounded-3xl p-6 sm:p-7 border border-indigo-100/80 shadow-xs space-y-4 flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-indigo-900 font-bold text-base">
               <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
                 <BrainCircuit className="w-4 h-4" />
               </div>
-              <span>Lời Khuyên Sư Phạm Cho Bé</span>
+              <span>Lời Khuyên Sư Phạm Cho Ruby</span>
             </div>
             <div className="text-xs sm:text-sm text-slate-600 space-y-2.5 leading-relaxed">
               <div className="p-3 rounded-xl bg-white border border-indigo-100 shadow-xs">
-                <strong className="text-emerald-700 font-bold block mb-1">🌟 Điểm mạnh vượt trội:</strong>
+                <strong className="text-emerald-700 font-bold block mb-1">🌟 Điểm mạnh của Ruby:</strong>
                 Con phản xạ tính toán rất tốt với các bài toán dãy số cơ bản, bài toán tuổi và phép toán quy ước mới.
               </div>
               <div className="p-3 rounded-xl bg-white border border-indigo-100 shadow-xs">
-                <strong className="text-rose-700 font-bold block mb-1">⚠️ 3 Bẫy con cần lưu ý:</strong>
+                <strong className="text-rose-700 font-bold block mb-1">⚠️ 3 Bẫy tư duy Ruby lưu ý:</strong>
                 <ul className="list-disc pl-4 space-y-1 text-slate-600 text-xs">
                   <li><strong>Năm nhuận:</strong> Năm 2020 chia hết cho 4 nên tháng 2 có 29 ngày (Câu 35).</li>
                   <li><strong>Đếm chữ số 8:</strong> Nhớ đếm cả hàng chục 80–89 và trừ số 88 (Câu 42).</li>
-                  <li><strong>Cắt hình vuông:</strong> Khi chia hình, chu vi mới gấp nhiều lần chu vi cũ (Câu 47).</li>
+                  <li><strong>Cắt ghép hình:</strong> Khi chia hình, chu vi các hình nhỏ tăng lên rất nhiều (Câu 47).</li>
                 </ul>
               </div>
             </div>
           </div>
 
           <button
-            onClick={() => onSelectFilter('wrong')}
-            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5"
+            onClick={() => handleCardClick('wrong')}
+            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <span>Bắt đầu ôn lại 17 câu sai</span>
             <ArrowRight className="w-4 h-4" />

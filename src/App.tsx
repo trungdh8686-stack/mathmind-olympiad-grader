@@ -7,6 +7,7 @@ import {
 } from './data/mockData';
 import { Header } from './components/Header';
 import { DashboardOverview } from './components/DashboardOverview';
+import { DropZoneSection } from './components/DropZoneSection';
 import { QuestionFilters } from './components/QuestionFilters';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadModal } from './components/UploadModal';
@@ -30,7 +31,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  // When child fixes a wrong question in practice mode
+  // When Ruby fixes a wrong question in practice mode
   const handleFixedQuestion = (questionId: number) => {
     setQuestions((prev) =>
       prev.map((q) =>
@@ -60,7 +61,7 @@ export const App: React.FC = () => {
   const handleExportDocx = async () => {
     try {
       setExportNotice('Đang xuất file Word (.docx)...');
-      await exportTestToDocx(summary, questions, 'Dap_an_Luyen_Toan_Cuoi_Tuan_11.docx');
+      await exportTestToDocx(summary, questions, `Dap_an_Luyen_Toan_${summary.studentName.replace(/\s+/g, '_')}.docx`);
       setExportNotice('Đã tải xuống file Word thành công! 🎉');
       setTimeout(() => setExportNotice(null), 3000);
     } catch (err) {
@@ -117,7 +118,7 @@ export const App: React.FC = () => {
   }, [questions]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-16">
+    <div className="min-h-screen bg-slate-50/80 flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-16">
       {/* Header */}
       <Header
         summary={summary}
@@ -146,17 +147,25 @@ export const App: React.FC = () => {
           onSelectFilter={(f) => setActiveFilter(f)}
         />
 
+        {/* Prominent Drag & Drop Zone on Home Page for any week's homework */}
+        <DropZoneSection
+          onGradingComplete={(res) => {
+            setQuestions(res.questions);
+            setSummary(res.summary);
+          }}
+        />
+
         {/* Question View Header & Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <div id="question-section" className="scroll-mt-24 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
           <div>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Danh Sách 63 Câu Hỏi Chi Tiết</span>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <span>Hướng Dẫn Giải Chi Tiết Từng Câu</span>
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800">
                 {filteredQuestions.length} câu
               </span>
             </h3>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Đối chiếu đáp án của con, giải thích lỗi sai & hướng dẫn giải chi tiết chuẩn SGK Việt Nam
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
+              Đối chiếu đáp án của Ruby, giải thích phương pháp giải chuẩn SGK cho tất cả các câu (đúng & sai)
             </p>
           </div>
 
@@ -164,9 +173,9 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-2xl self-start sm:self-auto">
             <button
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'cards'
-                  ? 'bg-white text-slate-900 shadow-sm'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -175,9 +184,9 @@ export const App: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-white text-slate-900 shadow-sm'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -208,7 +217,7 @@ export const App: React.FC = () => {
                 <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <h4 className="text-base font-bold text-slate-800">Không tìm thấy câu hỏi phù hợp</h4>
                 <p className="text-xs text-slate-500 mt-1">
-                  Vui lòng thử đổi bộ lọc hoặc tìm kiếm từ khóa khác!
+                  Ruby hãy thử đổi bộ lọc hoặc tìm kiếm từ khóa khác nhé!
                 </p>
                 <button
                   onClick={() => {
@@ -216,9 +225,9 @@ export const App: React.FC = () => {
                     setSearchQuery('');
                     setSelectedCategory('all');
                   }}
-                  className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
                 >
-                  Đặt lại bộ lọc
+                  Xem lại tất cả câu hỏi
                 </button>
               </div>
             ) : (
@@ -239,7 +248,7 @@ export const App: React.FC = () => {
         {viewMode === 'table' && (
           <div className="space-y-6">
             {partsGroup.map((group, pIdx) => (
-              <div key={pIdx} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+              <div key={pIdx} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
                 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                   <h4 className="text-base font-bold text-slate-900">{group.title}</h4>
                   <span className="text-xs font-semibold text-slate-500">{group.items.length} câu</span>
@@ -250,7 +259,7 @@ export const App: React.FC = () => {
                       <tr>
                         <th className="py-3 px-6 w-20 text-center">Câu</th>
                         <th className="py-3 px-6">Chuyên Đề</th>
-                        <th className="py-3 px-6 text-center">Đáp Án Của Con</th>
+                        <th className="py-3 px-6 text-center">Đáp Án Ruby Ghi</th>
                         <th className="py-3 px-6 text-center">Đáp Án Đúng</th>
                         <th className="py-3 px-6 text-center">Nhận Xét</th>
                         <th className="py-3 px-6">Hướng Dẫn / Giải Thích</th>
