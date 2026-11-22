@@ -32,7 +32,10 @@ export async function gradeImagesWithAI(
     })
   );
 
-  if (apiKey && apiKey.trim().length > 10) {
+  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envKey || '');
+
+  if (effectiveKey && effectiveKey.length > 10) {
     if (onProgress) {
       onProgress({ status: 'ai_evaluating', progress: 40, message: 'Đang kết nối Gemini Vision AI để đọc chữ viết tay và giải toán...' });
     }
@@ -42,7 +45,7 @@ export async function gradeImagesWithAI(
       const parts: any[] = [
         {
           text: `Bạn là một giáo viên chuyên gia Toán học Việt Nam, chuyên bồi dưỡng học sinh giỏi và Olympic Toán (SASMO, TIMO, AMO, Kangaroo). 
-Nhiệm vụ của bạn: Hãy phân tích các trang bài tập đính kèm, nhận diện từng câu hỏi (câu số mấy), đề bài toán, chữ viết tay của học sinh (đáp án của con), tính toán đáp án đúng chuẩn sư phạm Việt Nam, nhận xét Đúng / Sai / Cần xác minh, và giải thích chi tiết từng bước.
+Nhiệm vụ của bạn: Hãy phân tích các trang bài tập đính kèm của học sinh Ruby Đoàn Minh Châu. Nhận diện từng câu hỏi (câu số mấy), đề bài toán, chữ viết tay của học sinh (đáp án của con), tính toán đáp án đúng chuẩn sư phạm Việt Nam, nhận xét Đúng / Sai / Cần xác minh, và giải thích chi tiết từng bước.
 Hãy trả về JSON theo định dạng sau:
 {
   "title": "KẾT QUẢ CHẤM ĐIỂM BÀI TẬP TOÁN",
@@ -78,26 +81,36 @@ Hãy trả về JSON theo định dạng sau:
         });
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.2
-            }
-          })
-        }
-      );
+      // Try gemini-3.5-flash with fallback to gemini-3.5-flash-lite
+      const modelsToTry = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+      let data: any = null;
 
-      if (!response.ok) {
-        throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+      for (const model of modelsToTry) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts }],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.2
+                }
+              })
+            }
+          );
+
+          if (response.ok) {
+            data = await response.json();
+            break;
+          }
+        } catch (mErr) {
+          console.warn(`Model ${model} failed, trying next...`, mErr);
+        }
       }
 
-      const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
         const parsed = JSON.parse(rawText);
@@ -132,8 +145,8 @@ Hãy trả về JSON theo định dạng sau:
 
           const summary: TestSummary = {
             title: parsed.title || 'ĐỐI CHIẾU ĐÁP ÁN BÀI TẬP TOÁN',
-            subtitle: `Chấm tự động bằng AI Vision từ ${imageFiles.length} trang ảnh.`,
-            studentName: 'Bé Gái',
+            subtitle: `Chấm tự động bằng Gemini Vision AI từ ${imageFiles.length} trang ảnh.`,
+            studentName: 'Ruby Đoàn Minh Châu',
             grade: 'Olympic Toán',
             testDate: new Date().toLocaleDateString('vi-VN'),
             totalQuestions: qList.length,
@@ -145,7 +158,7 @@ Hãy trả về JSON theo định dạng sau:
             accuracyRate: Number(((correctCount / qList.length) * 100).toFixed(1)),
             completionRate: Number((((qList.length - unansweredCount) / qList.length) * 100).toFixed(1)),
             sourceImagesCount: imageFiles.length,
-            notes: 'Kết quả được tổng hợp trực tiếp từ hình ảnh chụp bài làm học sinh.'
+            notes: 'Kết quả được phân tích và nhận diện trực tiếp bằng Gemini Vision AI từ bài làm học sinh.'
           };
 
           return { questions: qList, summary };
@@ -176,7 +189,7 @@ Hãy trả về JSON theo định dạng sau:
   const summary: TestSummary = {
     title: 'ĐỐI CHIẾU ĐÁP ÁN – LUYỆN TOÁN CUỐI TUẦN 11',
     subtitle: `Tổng hợp từ ${imageFiles.length > 0 ? imageFiles.length : 5} ảnh bài tập (câu 1–63). Các câu chưa đọc rõ hình/đề được đánh dấu “Cần xác minh”.`,
-    studentName: 'Bé Gái',
+    studentName: 'Ruby Đoàn Minh Châu',
     grade: 'Olympic Toán Tiểu học / THCS',
     testDate: new Date().toLocaleDateString('vi-VN'),
     totalQuestions: INITIAL_QUESTIONS.length,
