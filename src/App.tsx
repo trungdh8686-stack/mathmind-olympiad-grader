@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  INITIAL_QUESTIONS,
-  INITIAL_SUMMARY,
   MathQuestion,
   TestSummary
 } from './data/mockData';
@@ -9,6 +7,9 @@ import { Header } from './components/Header';
 import { DashboardOverview } from './components/DashboardOverview';
 import { CurriculumBanner } from './components/CurriculumBanner';
 import { DropZoneSection } from './components/DropZoneSection';
+import { ExamBankSection } from './components/ExamBankSection';
+import { OnlineExamModal } from './components/OnlineExamModal';
+import { SessionHistoryModal } from './components/SessionHistoryModal';
 import { QuestionFilters } from './components/QuestionFilters';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadModal } from './components/UploadModal';
@@ -19,6 +20,8 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { AdminManagementModal } from './components/AdminManagementModal';
 import { exportTestToDocx } from './utils/docxExport';
 import { authService } from './services/authService';
+import { sessionService, ExamSession } from './services/sessionService';
+import { ExamPaper } from './data/examBank';
 import { User, EducationLevel } from './types/auth';
 import { LayoutGrid, Table as TableIcon, FileDown, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -38,18 +41,50 @@ export const App: React.FC = () => {
   const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'password' | 'study'>('avatar');
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
 
-  // Homework & Test Data State
-  const [summary, setSummary] = useState<TestSummary>(() => ({
-    ...INITIAL_SUMMARY,
-    studentName: currentUser.fullName,
-    grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`
-  }));
-  const [questions, setQuestions] = useState<MathQuestion[]>(INITIAL_QUESTIONS);
+  // Session & Data Isolation State
+  const [sessionsVersion, setSessionsVersion] = useState<number>(0);
+  const [activeSessionId, setActiveSessionId] = useState<string | undefined>(() => {
+    const latest = sessionService.getLatestSession(currentUser.id);
+    return latest?.id;
+  });
+
+  const [summary, setSummary] = useState<TestSummary>(() => {
+    const latest = sessionService.getLatestSession(currentUser.id);
+    if (latest) return latest.summary;
+    return {
+      title: `Bảng Thành Tích của ${currentUser.fullName}`,
+      subtitle: `Dữ liệu độc lập – Hãy tải bài tập mới hoặc luyện thi online`,
+      studentName: currentUser.fullName,
+      grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`,
+      testDate: new Date().toLocaleDateString('vi-VN'),
+      totalQuestions: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      verifyCount: 0,
+      unansweredCount: 0,
+      score10: 0,
+      accuracyRate: 0,
+      completionRate: 0,
+      sourceImagesCount: 0,
+      notes: `Tài khoản của ${currentUser.fullName} chưa có dữ liệu. Bắt đầu bằng cách kéo thả ảnh bài làm hoặc chọn bài thi trong Kho đề.`
+    };
+  });
+
+  const [questions, setQuestions] = useState<MathQuestion[]>(() => {
+    const latest = sessionService.getLatestSession(currentUser.id);
+    return latest ? latest.questions : [];
+  });
+
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'id' | 'wrong_first'>('id');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+
+  // Exam Bank & History Modals state
+  const [selectedExam, setSelectedExam] = useState<ExamPaper | null>(null);
+  const [isExamModalOpen, setIsExamModalOpen] = useState<boolean>(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
@@ -57,23 +92,44 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  // Sync summary with user changes
+  // Load session data when currentUser changes (Data Isolation for Ruby vs Lisa vs Tony vs Chip)
   useEffect(() => {
-    setSummary((prev) => ({
-      ...prev,
-      studentName: currentUser.fullName,
-      grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`
-    }));
-  }, [currentUser]);
+    const latest = sessionService.getLatestSession(currentUser.id);
+    if (latest) {
+      setActiveSessionId(latest.id);
+      setQuestions(latest.questions);
+      setSummary(latest.summary);
+    } else {
+      setActiveSessionId(undefined);
+      setQuestions([]);
+      setSummary({
+        title: `Bảng Thành Tích của ${currentUser.fullName}`,
+        subtitle: `Dữ liệu độc lập – Hãy tải bài tập mới hoặc luyện thi online`,
+        studentName: currentUser.fullName,
+        grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`,
+        testDate: new Date().toLocaleDateString('vi-VN'),
+        totalQuestions: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        verifyCount: 0,
+        unansweredCount: 0,
+        score10: 0,
+        accuracyRate: 0,
+        completionRate: 0,
+        sourceImagesCount: 0,
+        notes: `Tài khoản của ${currentUser.fullName} chưa có dữ liệu. Bắt đầu bằng cách kéo thả ảnh bài làm hoặc chọn bài thi trong Kho đề.`
+      });
+    }
+  }, [currentUser.id]);
+
+  // Compute student's overall multi-session statistics
+  const userStats = useMemo(() => {
+    return sessionService.getUserProgressStats(currentUser.id);
+  }, [currentUser.id, sessionsVersion]);
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     setIsLoginOpen(false);
-    setSummary((prev) => ({
-      ...prev,
-      studentName: user.fullName,
-      grade: `${user.currentGrade} • ${user.targetProgram}`
-    }));
   };
 
   const handleLogout = () => {
@@ -117,6 +173,64 @@ export const App: React.FC = () => {
         accuracyRate: Number(((newCorrect / prev.totalQuestions) * 100).toFixed(1))
       };
     });
+  };
+
+  const handleGradingComplete = (res: { questions: MathQuestion[]; summary: TestSummary; imagesCount?: number }) => {
+    const session = sessionService.createNewSession(
+      currentUser.id,
+      currentUser.fullName,
+      res.summary,
+      res.questions,
+      res.imagesCount || 5
+    );
+    setActiveSessionId(session.id);
+    setQuestions(session.questions);
+    setSummary(session.summary);
+    setSessionsVersion((v) => v + 1);
+  };
+
+  const handleExamCompleted = (result: { questions: MathQuestion[]; summary: TestSummary }) => {
+    const latest = sessionService.getLatestSession(currentUser.id);
+    if (latest) {
+      setActiveSessionId(latest.id);
+      setQuestions(latest.questions);
+      setSummary(latest.summary);
+    } else {
+      setQuestions(result.questions);
+      setSummary(result.summary);
+    }
+    setSessionsVersion((v) => v + 1);
+    setIsExamModalOpen(false);
+  };
+
+  const handleSelectSession = (session: ExamSession) => {
+    setActiveSessionId(session.id);
+    setQuestions(session.questions);
+    setSummary(session.summary);
+    setIsHistoryModalOpen(false);
+  };
+
+  const handleSessionsChanged = () => {
+    setSessionsVersion((v) => v + 1);
+    const latest = sessionService.getLatestSession(currentUser.id);
+    if (latest) {
+      setActiveSessionId(latest.id);
+      setQuestions(latest.questions);
+      setSummary(latest.summary);
+    } else {
+      setActiveSessionId(undefined);
+      setQuestions([]);
+      setSummary((prev) => ({
+        ...prev,
+        totalQuestions: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        verifyCount: 0,
+        unansweredCount: 0,
+        score10: 0,
+        accuracyRate: 0
+      }));
+    }
   };
 
   const handleExportDocx = async () => {
@@ -224,19 +338,35 @@ export const App: React.FC = () => {
           questions={questions}
           activeFilter={activeFilter}
           onSelectFilter={(f) => setActiveFilter(f)}
+          userStats={userStats}
+          onOpenHistory={() => setIsHistoryModalOpen(true)}
+          onUploadNew={() => setIsUploadOpen(true)}
+          onStartPractice={() => {
+            document.getElementById('exam-bank-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
         />
+
+        {/* Kho Đề Thi & Luyện Thi Trực Tuyến Tuyển Chọn */}
+        <div id="exam-bank-section" className="scroll-mt-24">
+          <ExamBankSection
+            currentUser={currentUser}
+            onSelectExam={(exam) => {
+              setSelectedExam(exam);
+              setIsExamModalOpen(true);
+            }}
+          />
+        </div>
 
         {/* Prominent Drag & Drop Zone on Home Page for any week's homework */}
         <DropZoneSection
           currentUser={currentUser}
-          onGradingComplete={(res) => {
-            setQuestions(res.questions);
-            setSummary(res.summary);
-          }}
+          onGradingComplete={handleGradingComplete}
         />
 
-        {/* Question View Header & Switcher */}
-        <div id="question-section" className="scroll-mt-24 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
+        {/* Question View Header & Switcher (Chỉ hiển thị khi đã có dữ liệu bài làm) */}
+        {questions.length > 0 && (
+          <>
+            <div id="question-section" className="scroll-mt-24 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
           <div>
             <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
               <span>Hướng Dẫn Giải Chi Tiết Từng Câu</span>
@@ -411,6 +541,8 @@ export const App: React.FC = () => {
             ))}
           </div>
         )}
+        </>
+      )}
       </main>
 
       {/* Modals */}
@@ -418,10 +550,26 @@ export const App: React.FC = () => {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         currentUser={currentUser}
-        onGradingComplete={(res) => {
-          setQuestions(res.questions);
-          setSummary(res.summary);
-        }}
+        onGradingComplete={handleGradingComplete}
+      />
+
+      {/* Online Exam Interactive Modal */}
+      <OnlineExamModal
+        isOpen={isExamModalOpen}
+        onClose={() => setIsExamModalOpen(false)}
+        exam={selectedExam}
+        currentUser={currentUser}
+        onExamCompleted={handleExamCompleted}
+      />
+
+      {/* Multi-Session History Modal */}
+      <SessionHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        currentUser={currentUser}
+        activeSessionId={activeSessionId}
+        onSelectSession={handleSelectSession}
+        onSessionsChanged={handleSessionsChanged}
       />
 
       <ImageViewerModal

@@ -24,6 +24,7 @@ export interface User {
   targetProgram: string; // e.g. "Toàn Cấp Học", "ASMO", "ITMC", "GDPT"
   bio?: string;
   createdAt: string;
+  baseGradeNumber?: number;
 }
 
 export const EDUCATION_LEVELS: { id: EducationLevel; name: string; grades: string; icon: string }[] = [

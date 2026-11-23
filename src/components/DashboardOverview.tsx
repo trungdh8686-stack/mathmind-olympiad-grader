@@ -13,19 +13,29 @@ import {
   BookOpen
 } from 'lucide-react';
 import { MathQuestion, TestSummary } from '../data/mockData';
+import { UserProgressStats } from '../services/sessionService';
+import { Upload, Calendar, Play } from 'lucide-react';
 
 interface DashboardOverviewProps {
   summary: TestSummary;
   questions: MathQuestion[];
   activeFilter: string;
   onSelectFilter: (filter: string) => void;
+  userStats?: UserProgressStats;
+  onOpenHistory?: () => void;
+  onUploadNew?: () => void;
+  onStartPractice?: () => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   summary,
   questions,
   activeFilter,
-  onSelectFilter
+  onSelectFilter,
+  userStats,
+  onOpenHistory,
+  onUploadNew,
+  onStartPractice
 }) => {
   const handleCardClick = (filter: string) => {
     onSelectFilter(filter);
@@ -53,8 +63,130 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     if (q.status === 'wrong') categoryStats[group].wrong++;
   });
 
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Empty State Banner */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white p-6 sm:p-8 shadow-xl shadow-indigo-950/10">
+          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-blue-100 border border-white/20">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Không Gian Học Tập Thông Minh</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                  <BookOpen className="w-3 h-3" />
+                  <span>Dữ Liệu Độc Lập</span>
+                </span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
+                Chào mừng {summary.studentName}! 🚀
+              </h2>
+              <p className="text-sm sm:text-base text-blue-100 leading-relaxed font-normal">
+                Hiện tại con chưa có bài tập nào được nạp vào hệ thống. Dữ liệu của con được lưu trữ độc lập hoàn toàn. Con có thể bắt đầu bằng cách tải ảnh bài làm lên để AI chấm điểm hoặc thử sức làm đề thi trực tuyến ngay dưới đây!
+              </p>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+              {onUploadNew && (
+                <button
+                  onClick={onUploadNew}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-105 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Chấm Bài Mới</span>
+                </button>
+              )}
+              {onStartPractice && (
+                <button
+                  onClick={onStartPractice}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm border border-white/30 backdrop-blur-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Play className="w-4 h-4" />
+                  <span>Luyện Thi Ngay</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Informational Guidance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+              <Upload className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="font-bold text-slate-900 text-base">1. Kéo thả & Chấm điểm ảnh bài tập</h4>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Tải lên 1 hoặc nhiều ảnh chụp phiếu bài tập trên lớp của con. AI Gemini Pro sẽ tự động nhận diện chữ viết tay, so khớp đáp án chuẩn và phân tích lỗi sai chi tiết từng bước.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="font-bold text-slate-900 text-base">2. Kho Đề Thi & Luyện Thi Trực Tuyến</h4>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Khám phá kho đề thi Olympic Quốc tế ASMO, ITMC, GMATH, Kangaroo và Chuyên Toán. Con làm bài trực tuyến có đồng hồ đếm ngược và xem điểm số ngay lập tức!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Session Statistics Bar (Điểm trung bình qua các lần chấm) */}
+      {userStats && userStats.totalSessions > 0 && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-extrabold text-base sm:text-lg">Theo Dõi Tiến Độ & Điểm Trung Bình</h4>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                  {userStats.totalSessions} Phiên Đã Chấm
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Điểm số trung bình và lịch sử đối chiếu qua các lần đưa bài vào kiểm tra
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+            <div className="text-center sm:text-right">
+              <div className="text-xs text-slate-400 font-semibold uppercase">Điểm Trung Bình</div>
+              <div className="text-2xl font-black text-amber-300">{userStats.averageScore} <span className="text-xs text-slate-400 font-normal">/ 10</span></div>
+            </div>
+            <div className="text-center sm:text-right">
+              <div className="text-xs text-slate-400 font-semibold uppercase">Điểm Cao Nhất</div>
+              <div className="text-2xl font-black text-emerald-400">{userStats.highestScore} <span className="text-xs text-slate-400 font-normal">/ 10</span></div>
+            </div>
+            {onOpenHistory && (
+              <button
+                onClick={onOpenHistory}
+                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5 cursor-pointer ml-auto md:ml-0"
+              >
+                <Clock className="w-4 h-4" />
+                <span>Lịch Sử Chấm ({userStats.totalSessions})</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Top Banner / Student Greeting */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white p-6 sm:p-8 shadow-xl shadow-indigo-950/10">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />

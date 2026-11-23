@@ -1,8 +1,10 @@
 import { User, EducationLevel } from '../types/auth';
+import { RUBY_AVATAR, LISA_AVATAR, CHIP_AVATAR, TONY_AVATAR, ADMIN_AVATAR } from '../utils/avatarSVGs';
+import { calculateProgressedGrade } from '../utils/gradeProgression';
 
-const STORAGE_USERS_KEY = 'mathmind_users_v3';
-const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v3';
-const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v3';
+const STORAGE_USERS_KEY = 'mathmind_users_v5';
+const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v5';
+const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v5';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -12,7 +14,7 @@ export const INITIAL_USERS: User[] = [
     fullName: 'Sếp Quản Trị Viên',
     nickname: 'Admin',
     role: 'admin',
-    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin&backgroundColor=e2e3e5',
+    avatar: ADMIN_AVATAR,
     level: 'all',
     currentGrade: 'Toàn hệ thống',
     targetProgram: 'Quản trị viên • Toàn cấp học',
@@ -26,11 +28,12 @@ export const INITIAL_USERS: User[] = [
     fullName: 'Ruby Đoàn Minh Châu',
     nickname: 'Ruby',
     role: 'student',
-    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Ruby&backgroundColor=ffd5dc',
+    avatar: RUBY_AVATAR,
     level: 'all',
-    currentGrade: 'Lớp 3',
+    baseGradeNumber: 3,
+    currentGrade: calculateProgressedGrade(3).gradeText,
     targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
-    bio: 'Hiện học Lớp 3 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Quốc tế!',
+    bio: 'Bé gái tóc đuôi gà – Tự động tịnh tiến cấp học & mở toàn bộ các kỳ thi Olympic!',
     createdAt: '2026-01-02'
   },
   {
@@ -40,11 +43,12 @@ export const INITIAL_USERS: User[] = [
     fullName: 'Lisa Đoàn Hồng Anh',
     nickname: 'Lisa',
     role: 'student',
-    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lisa&backgroundColor=d1e7dd',
+    avatar: LISA_AVATAR,
     level: 'all',
-    currentGrade: 'Lớp 6',
+    baseGradeNumber: 6,
+    currentGrade: calculateProgressedGrade(6).gradeText,
     targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
-    bio: 'Hiện học Lớp 6 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Quốc tế!',
+    bio: 'Bé gái buộc tóc gọn gàng – Tự động tịnh tiến cấp học & mở toàn bộ các kỳ thi Olympic!',
     createdAt: '2026-01-02'
   },
   {
@@ -54,11 +58,12 @@ export const INITIAL_USERS: User[] = [
     fullName: 'Tony Đoàn Nhật Minh',
     nickname: 'Tony',
     role: 'student',
-    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Tony&backgroundColor=cfe2ff',
+    avatar: TONY_AVATAR,
     level: 'all',
-    currentGrade: 'Lớp 1',
+    baseGradeNumber: 1,
+    currentGrade: calculateProgressedGrade(1).gradeText,
     targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
-    bio: 'Hiện học Lớp 1 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Toán Tiếng Anh!',
+    bio: 'Bé trai tóc ngắn lanh lợi – Tự động tịnh tiến cấp học & Toán Tiếng Anh!',
     createdAt: '2026-01-03'
   },
   {
@@ -68,32 +73,44 @@ export const INITIAL_USERS: User[] = [
     fullName: 'Chip Đoàn Quỳnh Chi',
     nickname: 'Chip',
     role: 'student',
-    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Chip&backgroundColor=fff3cd',
+    avatar: CHIP_AVATAR,
     level: 'all',
-    currentGrade: 'Lớp 10',
+    baseGradeNumber: 10,
+    currentGrade: calculateProgressedGrade(10).gradeText,
     targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
-    bio: 'Hiện học Lớp 10 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Toán!',
+    bio: 'Bé gái thả tóc dài dịu dàng – Tự động tịnh tiến cấp học & Chuyên Toán Olympic!',
     createdAt: '2026-01-03'
   }
 ];
 
+// Helper to ensure dynamic grade progression is applied
+function enrichUserWithDynamicGrade(user: User): User {
+  if (user.baseGradeNumber) {
+    const progression = calculateProgressedGrade(user.baseGradeNumber);
+    return {
+      ...user,
+      currentGrade: progression.gradeText
+    };
+  }
+  return user;
+}
+
 export const authService = {
   getUsers(): User[] {
     const raw = localStorage.getItem(STORAGE_USERS_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length >= 4) {
-        return parsed;
+    let users = INITIAL_USERS;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length >= 4) {
+          users = parsed;
+        }
+      } catch {
+        // fallback
       }
-    } catch {
-      // fallback
     }
-    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(INITIAL_USERS));
-    return INITIAL_USERS;
+    // Dynamically update progression for all users
+    return users.map(enrichUserWithDynamicGrade);
   },
 
   saveUsers(users: User[]): void {
@@ -108,7 +125,7 @@ export const authService = {
       // Fresh sync with all users database
       const users = this.getUsers();
       const found = users.find(u => u.id === active.id || u.username.toLowerCase() === active.username.toLowerCase());
-      return found || active;
+      return enrichUserWithDynamicGrade(found || active);
     } catch {
       return null;
     }

@@ -11,7 +11,7 @@ export interface MathQuestion {
   status: 'correct' | 'wrong' | 'unanswered' | 'need_verify';
   statusText: string;
   category: string;
-  difficulty: 'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Olympic';
+  difficulty: 'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Olympic' | 'Olympic Quốc tế';
   explanation: string;
   solutionSteps: string[];
   studentMistake?: string | null;
