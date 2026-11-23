@@ -2,9 +2,9 @@ import { User, EducationLevel } from '../types/auth';
 import { RUBY_AVATAR, LISA_AVATAR, CHIP_AVATAR, TONY_AVATAR, ADMIN_AVATAR } from '../utils/avatarSVGs';
 import { calculateProgressedGrade } from '../utils/gradeProgression';
 
-const STORAGE_USERS_KEY = 'mathmind_users_v5';
-const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v5';
-const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v5';
+const STORAGE_USERS_KEY = 'mathmind_users_v6';
+const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v6';
+const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v6';
 
 export const INITIAL_USERS: User[] = [
   {

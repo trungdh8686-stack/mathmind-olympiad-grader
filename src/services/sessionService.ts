@@ -124,6 +124,14 @@ export const sessionService = {
 
     all.unshift(newSession);
     this.saveAllSessions(all);
+
+    // Asynchronously sync with Supabase Cloud Database if configured
+    import('./supabaseClient')
+      .then(({ cloudDbService }) => {
+        cloudDbService.saveSession(newSession);
+      })
+      .catch(() => {});
+
     return newSession;
   },
 

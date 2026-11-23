@@ -1,16 +1,16 @@
 /**
  * Logic tự động tịnh tiến khối lớp theo năm học Việt Nam:
  * - Năm học Việt Nam bắt đầu từ ngày 01/09 năm trước đến ngày 31/05 năm sau (tháng 6, 7, 8 là nghỉ hè, vẫn tính vào chuẩn bị năm học mới).
- * - Mốc xuất phát (Năm học 2025 – 2026):
+ * - Mốc xuất phát (Năm học 2026 – 2027):
+ *   + Tony: Lớp 1
  *   + Ruby: Lớp 3
  *   + Lisa: Lớp 6
- *   + Tony: Lớp 1
  *   + Chip: Lớp 10
  */
 
 export interface SchoolYearInfo {
-  schoolYearString: string; // e.g. "2025 – 2026"
-  startYear: number;        // e.g. 2025
+  schoolYearString: string; // e.g. "2026 – 2027"
+  startYear: number;        // e.g. 2026
   isSummer: boolean;        // true nếu tháng 6, 7, 8
 }
 
@@ -41,16 +41,16 @@ export function getCurrentSchoolYear(date: Date = new Date()): SchoolYearInfo {
   };
 }
 
-// Tính số năm tịnh tiến so với năm mốc 2025
-export function getProgressionOffset(baseStartYear: number = 2025, date: Date = new Date()): number {
+// Tính số năm tịnh tiến so với năm mốc 2026
+export function getProgressionOffset(baseStartYear: number = 2026, date: Date = new Date()): number {
   const current = getCurrentSchoolYear(date);
   return Math.max(0, current.startYear - baseStartYear);
 }
 
 // Tự động tính lớp và cấp học tương ứng
 export function calculateProgressedGrade(
-  baseGradeNumber: number, // e.g. Ruby=3, Lisa=6, Tony=1, Chip=10
-  baseStartYear: number = 2025,
+  baseGradeNumber: number, // e.g. Tony=1, Ruby=3, Lisa=6, Chip=10
+  baseStartYear: number = 2026,
   date: Date = new Date()
 ): {
   gradeNumber: number;
