@@ -300,7 +300,8 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({
                     <th className="py-3 px-4">Tên đăng nhập</th>
                     <th className="py-3 px-4">Mật khẩu</th>
                     <th className="py-3 px-4">Phân quyền</th>
-                    <th className="py-3 px-4">Cấp học & Chương trình</th>
+                    <th className="py-3 px-4">Quyền truy cập cấp học</th>
+                    <th className="py-3 px-4">Lớp thực tế</th>
                     <th className="py-3 px-4 text-center">Hành động</th>
                   </tr>
                 </thead>
@@ -341,9 +342,16 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({
                         </button>
                       </td>
 
-                      <td className="py-3 px-4 text-slate-600">
-                        <div className="font-semibold text-slate-800">{u.currentGrade}</div>
-                        <div className="text-[10px] text-indigo-600 font-medium">{u.targetProgram}</div>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          ✓ Mọi cấp học (Lớp 1 – 12)
+                        </span>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Tiểu học • THCS • THPT & Olympic</div>
+                      </td>
+
+                      <td className="py-3 px-4 text-slate-700">
+                        <div className="font-extrabold text-slate-900 text-xs sm:text-sm">{u.currentGrade}</div>
+                        <div className="text-[10px] text-blue-600 font-medium">Tự do đổi cấp học bất kỳ lúc nào</div>
                       </td>
 
                       <td className="py-3 px-4 text-center">

@@ -1,8 +1,8 @@
 import { User, EducationLevel } from '../types/auth';
 
-const STORAGE_USERS_KEY = 'mathmind_users_v2';
-const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v2';
-const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v2';
+const STORAGE_USERS_KEY = 'mathmind_users_v3';
+const STORAGE_CURRENT_USER_KEY = 'mathmind_active_user_v3';
+const STORAGE_REMEMBER_KEY = 'mathmind_remember_me_v3';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -13,10 +13,10 @@ export const INITIAL_USERS: User[] = [
     nickname: 'Admin',
     role: 'admin',
     avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin&backgroundColor=e2e3e5',
-    level: 'primary',
+    level: 'all',
     currentGrade: 'Toàn hệ thống',
-    targetProgram: 'Quản trị viên',
-    bio: 'Quyền cao nhất: Phân quyền, quản lý tài khoản con, cấu hình chương trình học.',
+    targetProgram: 'Quản trị viên • Toàn cấp học',
+    bio: 'Quyền cao nhất: Phân quyền, quản lý tài khoản con, mở quyền toàn bộ các cấp học.',
     createdAt: '2026-01-01'
   },
   {
@@ -27,10 +27,10 @@ export const INITIAL_USERS: User[] = [
     nickname: 'Ruby',
     role: 'student',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Ruby&backgroundColor=ffd5dc',
-    level: 'primary',
-    currentGrade: 'Lớp 4 - Tiểu học',
-    targetProgram: 'ASMO',
-    bio: 'Chiến binh Olympic Toán – Say mê tư duy logic và các kỳ thi quốc tế!',
+    level: 'all',
+    currentGrade: 'Lớp 3',
+    targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
+    bio: 'Hiện học Lớp 3 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Quốc tế!',
     createdAt: '2026-01-02'
   },
   {
@@ -41,10 +41,10 @@ export const INITIAL_USERS: User[] = [
     nickname: 'Lisa',
     role: 'student',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lisa&backgroundColor=d1e7dd',
-    level: 'secondary',
-    currentGrade: 'Lớp 7 - THCS',
-    targetProgram: 'ITMC',
-    bio: 'Tự tin chinh phục Toán THCS & Olympic Quốc tế ITMC / SASMO!',
+    level: 'all',
+    currentGrade: 'Lớp 6',
+    targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
+    bio: 'Hiện học Lớp 6 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Quốc tế!',
     createdAt: '2026-01-02'
   },
   {
@@ -55,10 +55,10 @@ export const INITIAL_USERS: User[] = [
     nickname: 'Tony',
     role: 'student',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Tony&backgroundColor=cfe2ff',
-    level: 'primary',
-    currentGrade: 'Lớp 2 - Tiểu học',
-    targetProgram: 'GMATH',
-    bio: 'Toán Tiếng Anh GMATH & Siêu nhí giải đố tư duy!',
+    level: 'all',
+    currentGrade: 'Lớp 1',
+    targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
+    bio: 'Hiện học Lớp 1 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Toán Tiếng Anh!',
     createdAt: '2026-01-03'
   },
   {
@@ -69,10 +69,10 @@ export const INITIAL_USERS: User[] = [
     nickname: 'Chip',
     role: 'student',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Chip&backgroundColor=fff3cd',
-    level: 'primary',
-    currentGrade: 'Tiểu học',
-    targetProgram: 'IKMC',
-    bio: 'Bé cưng chăm ngoan, hào hứng khám phá các bài toán vui sắc màu!',
+    level: 'all',
+    currentGrade: 'Lớp 10',
+    targetProgram: 'Đa cấp học (Tiểu học • THCS • THPT)',
+    bio: 'Hiện học Lớp 10 – Mở toàn bộ các cấp học Lớp 1 đến 12 & Olympic Toán!',
     createdAt: '2026-01-03'
   }
 ];

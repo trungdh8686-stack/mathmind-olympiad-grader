@@ -109,7 +109,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 >
                   <img src={u.avatar} alt={u.nickname} className="w-10 h-10 rounded-xl bg-white shadow-xs" />
                   <div className="text-xs font-bold text-slate-800">{u.nickname}</div>
-                  <div className="text-[10px] text-slate-500 truncate w-full">{u.currentGrade}</div>
+                  <div className="text-[11px] font-extrabold text-blue-600 truncate w-full">{u.currentGrade}</div>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                    Mọi cấp học
+                  </span>
                 </button>
               ))}
             </div>

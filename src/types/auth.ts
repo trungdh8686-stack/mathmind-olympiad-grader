@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'student';
 
-export type EducationLevel = 'primary' | 'secondary' | 'high_school';
+export type EducationLevel = 'all' | 'primary' | 'secondary' | 'high_school';
 
 export interface MathProgram {
   id: string;
@@ -20,13 +20,14 @@ export interface User {
   role: UserRole;
   avatar: string;
   level: EducationLevel;
-  currentGrade: string; // e.g. "Lớp 4", "Lớp 7", "Lớp 11"
-  targetProgram: string; // e.g. "ASMO", "ITMC", "GDPT"
+  currentGrade: string; // e.g. "Lớp 3", "Lớp 6", "Lớp 1", "Lớp 10"
+  targetProgram: string; // e.g. "Toàn Cấp Học", "ASMO", "ITMC", "GDPT"
   bio?: string;
   createdAt: string;
 }
 
 export const EDUCATION_LEVELS: { id: EducationLevel; name: string; grades: string; icon: string }[] = [
+  { id: 'all', name: 'Đa cấp học', grades: 'Lớp 1 – 12 (Toàn cấp)', icon: '🌟' },
   { id: 'primary', name: 'Tiểu học', grades: 'Lớp 1 – 5', icon: '🎒' },
   { id: 'secondary', name: 'THCS', grades: 'Lớp 6 – 9', icon: '📐' },
   { id: 'high_school', name: 'THPT', grades: 'Lớp 10 – 12', icon: '🔬' }

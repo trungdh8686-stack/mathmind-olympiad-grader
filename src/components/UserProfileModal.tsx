@@ -353,10 +353,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
               {/* Education Level Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Cấp học hiện tại
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Cấp học quan tâm (Tự do chọn học mọi cấp 1 – 12)
+                  </label>
+                  <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Không giới hạn cấp học
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {EDUCATION_LEVELS.map(lvl => (
                     <button
                       key={lvl.id}

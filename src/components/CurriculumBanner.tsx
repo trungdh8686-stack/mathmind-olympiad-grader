@@ -56,7 +56,7 @@ export const CurriculumBanner: React.FC<CurriculumBannerProps> = ({
               <span className="text-blue-200">{currentProgramObj.name} – {currentProgramObj.description}</span>
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
-              Áp dụng phương pháp sư phạm chuẩn hóa của Việt Nam & Quốc tế cho <b>{user.fullName}</b>.
+              Lớp thực tế của con: <b className="text-amber-300">{user.currentGrade}</b> • Nền tảng mở quyền giải toán toàn diện mọi cấp học (Lớp 1 – 12 & Olympic Quốc tế) cho <b>{user.fullName}</b>.
             </p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export const CurriculumBanner: React.FC<CurriculumBannerProps> = ({
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/20 transition-all shadow-sm"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>{isExpanded ? 'Thu gọn bộ lọc' : 'Đổi Cấp Học / Kỳ Thi'}</span>
+            <span>{isExpanded ? 'Thu gọn bộ lọc' : 'Tự do đổi Cấp Học / Kỳ Thi'}</span>
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
           </button>
         </div>
@@ -80,9 +80,9 @@ export const CurriculumBanner: React.FC<CurriculumBannerProps> = ({
           {/* Level Switcher */}
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-blue-300 mb-2">
-              1. Chọn cấp học:
+              1. Tự do chuyển đổi cấp học bất kỳ lúc nào:
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               {EDUCATION_LEVELS.map(lvl => (
                 <button
                   key={lvl.id}
