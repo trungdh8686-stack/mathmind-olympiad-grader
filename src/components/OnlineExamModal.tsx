@@ -218,7 +218,7 @@ export const OnlineExamModal: React.FC<OnlineExamModalProps> = ({
                 </span>
               </div>
 
-              <div className="font-bold text-sm sm:text-base text-slate-900 leading-relaxed">
+              <div className="font-bold text-sm sm:text-base text-slate-900 leading-relaxed whitespace-pre-line">
                 {q.question}
               </div>
 

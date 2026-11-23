@@ -3,6 +3,7 @@ import { ExamSession } from './sessionService';
 import { User } from '../types/auth';
 
 const DEFAULT_SUPABASE_URL = 'https://ltemmeniaudtyudyaape.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_2fDAvbxV0ZV4rOzkn05mXQ_Nyz1FzyM';
 
 export const getSupabaseConfig = () => {
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
@@ -10,7 +11,7 @@ export const getSupabaseConfig = () => {
   const localKey = localStorage.getItem('SUPABASE_ANON_KEY') || '';
 
   const url = envUrl || DEFAULT_SUPABASE_URL;
-  const key = envKey || localKey || '';
+  const key = envKey || localKey || DEFAULT_SUPABASE_ANON_KEY;
 
   return { url, key, isConnected: !!key };
 };
