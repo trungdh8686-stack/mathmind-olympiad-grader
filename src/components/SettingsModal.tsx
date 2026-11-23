@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Key, User, ExternalLink, Save } from 'lucide-react';
 import { TestSummary } from '../data/mockData';
 
@@ -19,6 +19,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [grade, setGrade] = useState(summary.grade);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || '');
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

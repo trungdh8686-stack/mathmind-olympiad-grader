@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, UserPlus, KeyRound, Trash2, Edit3, Check, User as UserIcon, AlertCircle } from 'lucide-react';
 import { User, UserRole, EducationLevel, PRESET_AVATARS } from '../types/auth';
 import { authService } from '../services/authService';
@@ -34,6 +34,17 @@ export const AdminManagementModal: React.FC<AdminManagementModalProps> = ({
   // Reset password state
   const [resetPassModalUser, setResetPassModalUser] = useState<User | null>(null);
   const [resetPassInput, setResetPassInput] = useState('1');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

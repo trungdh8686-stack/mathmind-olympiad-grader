@@ -50,6 +50,18 @@ export const OnlineExamModal: React.FC<OnlineExamModalProps> = ({
     return () => clearInterval(timer);
   }, [isOpen, isSubmitted, timeLeft]);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !exam) return null;
 
   const minutes = Math.floor(timeLeft / 60);

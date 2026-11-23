@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Camera, Sparkles, Image as ImageIcon, Trash2, CheckCircle, RefreshCw } from 'lucide-react';
 import { gradeImagesWithAI, GradingProgress } from '../services/aiGrader';
 import { MathQuestion, TestSummary } from '../data/mockData';
@@ -26,6 +26,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     message: ''
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

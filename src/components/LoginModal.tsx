@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Lock, User as UserIcon, CheckCircle2, ShieldCheck, Heart, Eye, EyeOff } from 'lucide-react';
 import { authService, INITIAL_USERS } from '../services/authService';
 import { User } from '../types/auth';
@@ -22,6 +22,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !canClose || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, canClose, onClose]);
 
   if (!isOpen) return null;
 

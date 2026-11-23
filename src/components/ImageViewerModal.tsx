@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 
 interface ImageViewerModalProps {
@@ -23,6 +23,17 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ isOpen, onCl
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
   const samplePages = getSamplePages();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

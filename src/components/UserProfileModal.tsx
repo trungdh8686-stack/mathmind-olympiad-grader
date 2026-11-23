@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User as UserIcon, Lock, Camera, Check, Sparkles, BookOpen, GraduationCap } from 'lucide-react';
 import { User, PRESET_AVATARS, EDUCATION_LEVELS, MATH_PROGRAMS } from '../types/auth';
 import { authService } from '../services/authService';
@@ -36,6 +36,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [currentGrade, setCurrentGrade] = useState(user.currentGrade);
   const [targetProgram, setTargetProgram] = useState(user.targetProgram);
   const [studySuccess, setStudySuccess] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

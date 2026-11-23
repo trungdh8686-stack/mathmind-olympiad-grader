@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Calendar, Award, CheckCircle2, ChevronRight, Trash2, Clock, BookOpen, AlertCircle } from 'lucide-react';
 import { ExamSession, sessionService } from '../services/sessionService';
 import { User } from '../types/auth';
@@ -20,6 +20,17 @@ export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
   activeSessionId,
   onSessionsChanged
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const sessions = sessionService.getUserSessions(currentUser.id);
