@@ -15,6 +15,7 @@ import {
 import confetti from 'canvas-confetti';
 import { MathQuestion } from '../data/mockData';
 import { MathView } from './MathView';
+import { BilingualView } from './BilingualView';
 
 interface QuestionCardProps {
   question: MathQuestion;
@@ -137,8 +138,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed, s
 
       {/* Question Text */}
       <div className="py-4 space-y-2">
-        <div className="text-sm sm:text-base text-slate-800 font-medium leading-relaxed bg-slate-50/80 p-4 rounded-2xl border border-slate-100 whitespace-pre-line">
-          <MathView text={question.question} />
+        <div className="text-sm sm:text-base text-slate-800 leading-relaxed bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+          <BilingualView text={question.question} />
         </div>
         {question.keywords && (
           <div className="text-xs text-slate-500 font-medium px-1 flex items-center gap-1.5 flex-wrap">
