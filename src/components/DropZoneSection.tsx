@@ -3,11 +3,14 @@ import { Upload, Camera, Sparkles, X, FileImage, CheckCircle, RefreshCw } from '
 import { gradeImagesWithAI, GradingProgress } from '../services/aiGrader';
 import { MathQuestion, TestSummary } from '../data/mockData';
 
+import { User } from '../types/auth';
+
 interface DropZoneSectionProps {
   onGradingComplete: (result: { questions: MathQuestion[]; summary: TestSummary }) => void;
+  currentUser?: User;
 }
 
-export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingComplete }) => {
+export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingComplete, currentUser }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<GradingProgress>({
@@ -50,7 +53,17 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
     if (files.length === 0) return;
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
     try {
-      const result = await gradeImagesWithAI(files, apiKey, p => setProgress(p));
+      const result = await gradeImagesWithAI(
+        files,
+        apiKey,
+        p => setProgress(p),
+        {
+          studentName: currentUser?.fullName,
+          level: currentUser?.level,
+          grade: currentUser?.currentGrade,
+          program: currentUser?.targetProgram
+        }
+      );
       onGradingComplete(result);
       setFiles([]);
       setTimeout(() => {

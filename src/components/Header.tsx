@@ -1,24 +1,38 @@
 import React from 'react';
-import { Download, Camera, Printer, Settings, Sparkles, Heart, FileSpreadsheet } from 'lucide-react';
+import { Download, Camera, Printer, Settings, Sparkles, Heart, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { TestSummary } from '../data/mockData';
+import { User } from '../types/auth';
+import { UserMenu } from './UserMenu';
 
 interface HeaderProps {
   summary: TestSummary;
+  currentUser: User;
   onOpenUpload: () => void;
   onExportDocx: () => void;
   onOpenSettings: () => void;
   onOpenImageViewer: () => void;
   onPrint: () => void;
+  onOpenProfile: (tab?: 'avatar' | 'password' | 'study') => void;
+  onOpenAdmin: () => void;
+  onSwitchAccount: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   summary,
+  currentUser,
   onOpenUpload,
   onExportDocx,
   onOpenSettings,
   onOpenImageViewer,
-  onPrint
+  onPrint,
+  onOpenProfile,
+  onOpenAdmin,
+  onSwitchAccount,
+  onLogout
 }) => {
+  const isStudent = currentUser.role === 'student';
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,15 +48,23 @@ export const Header: React.FC<HeaderProps> = ({
                   MathMind <span className="text-blue-600">AI</span>
                 </span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
-                  Học Toán Thông Minh
+                  Học Toán Đa Cấp
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-50 text-pink-700 border border-pink-200 whitespace-nowrap shadow-xs">
-                  <Heart className="w-3 h-3 fill-pink-500 text-pink-500" />
-                  <span>Dành riêng cho {summary.studentName}</span>
-                </span>
+
+                {isStudent ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-50 text-pink-700 border border-pink-200 whitespace-nowrap shadow-xs">
+                    <Heart className="w-3 h-3 fill-pink-500 text-pink-500" />
+                    <span>Dành riêng cho {currentUser.fullName}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap shadow-xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Quản trị viên: {currentUser.fullName}</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 truncate hidden sm:block mt-0.5 font-medium">
-                Nền tảng tự động chấm điểm bài tập qua ảnh & hướng dẫn giải chuẩn SGK, Olympic Toán
+                Chấm điểm AI & Hướng dẫn giải chuẩn Việt Nam (Tiểu học, THCS, THPT) & Quốc tế (ASMO, ITMC, GMATH, Olympic)
               </p>
             </div>
           </div>
@@ -89,6 +111,15 @@ export const Header: React.FC<HeaderProps> = ({
               <Camera className="w-4 h-4 shrink-0" />
               <span>Chấm bài mới</span>
             </button>
+
+            {/* User Account Menu with Avatar */}
+            <UserMenu
+              user={currentUser}
+              onOpenProfile={onOpenProfile}
+              onOpenAdmin={onOpenAdmin}
+              onSwitchAccount={onSwitchAccount}
+              onLogout={onLogout}
+            />
 
             {/* Settings */}
             <button

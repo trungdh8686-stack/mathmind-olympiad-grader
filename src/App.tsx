@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   INITIAL_QUESTIONS,
   INITIAL_SUMMARY,
@@ -7,17 +7,43 @@ import {
 } from './data/mockData';
 import { Header } from './components/Header';
 import { DashboardOverview } from './components/DashboardOverview';
+import { CurriculumBanner } from './components/CurriculumBanner';
 import { DropZoneSection } from './components/DropZoneSection';
 import { QuestionFilters } from './components/QuestionFilters';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadModal } from './components/UploadModal';
 import { ImageViewerModal } from './components/ImageViewerModal';
 import { SettingsModal } from './components/SettingsModal';
+import { LoginModal } from './components/LoginModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { AdminManagementModal } from './components/AdminManagementModal';
 import { exportTestToDocx } from './utils/docxExport';
+import { authService } from './services/authService';
+import { User, EducationLevel } from './types/auth';
 import { LayoutGrid, Table as TableIcon, FileDown, CheckCircle, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [summary, setSummary] = useState<TestSummary>(INITIAL_SUMMARY);
+  // Authentication & Active User State
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const saved = authService.getCurrentUser();
+    if (saved) return saved;
+    const all = authService.getUsers();
+    return all.find(u => u.username.toLowerCase() === 'ruby') || all[1] || all[0];
+  });
+
+  const [isLoginOpen, setIsLoginOpen] = useState<boolean>(() => {
+    return !authService.getCurrentUser() && !authService.isRemembered();
+  });
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [profileInitialTab, setProfileInitialTab] = useState<'avatar' | 'password' | 'study'>('avatar');
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+
+  // Homework & Test Data State
+  const [summary, setSummary] = useState<TestSummary>(() => ({
+    ...INITIAL_SUMMARY,
+    studentName: currentUser.fullName,
+    grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`
+  }));
   const [questions, setQuestions] = useState<MathQuestion[]>(INITIAL_QUESTIONS);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -31,7 +57,42 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  // When Ruby fixes a wrong question in practice mode
+  // Sync summary with user changes
+  useEffect(() => {
+    setSummary((prev) => ({
+      ...prev,
+      studentName: currentUser.fullName,
+      grade: `${currentUser.currentGrade} • ${currentUser.targetProgram}`
+    }));
+  }, [currentUser]);
+
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    setIsLoginOpen(false);
+    setSummary((prev) => ({
+      ...prev,
+      studentName: user.fullName,
+      grade: `${user.currentGrade} • ${user.targetProgram}`
+    }));
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setIsLoginOpen(true);
+  };
+
+  const handleUpdateCurriculum = (level: EducationLevel, program: string, grade?: string) => {
+    authService.updateCurriculum(currentUser.id, level, program, grade);
+    const updated = {
+      ...currentUser,
+      level,
+      targetProgram: program,
+      currentGrade: grade || currentUser.currentGrade
+    };
+    setCurrentUser(updated);
+  };
+
+  // When student fixes a wrong question in practice retry mode
   const handleFixedQuestion = (questionId: number) => {
     setQuestions((prev) =>
       prev.map((q) =>
@@ -61,7 +122,11 @@ export const App: React.FC = () => {
   const handleExportDocx = async () => {
     try {
       setExportNotice('Đang xuất file Word (.docx)...');
-      await exportTestToDocx(summary, questions, `Dap_an_Luyen_Toan_${summary.studentName.replace(/\s+/g, '_')}.docx`);
+      await exportTestToDocx(
+        summary,
+        questions,
+        `Dap_an_Luyen_Toan_${currentUser.nickname || summary.studentName.replace(/\s+/g, '_')}.docx`
+      );
       setExportNotice('Đã tải xuống file Word thành công! 🎉');
       setTimeout(() => setExportNotice(null), 3000);
     } catch (err) {
@@ -122,11 +187,19 @@ export const App: React.FC = () => {
       {/* Header */}
       <Header
         summary={summary}
+        currentUser={currentUser}
         onOpenUpload={() => setIsUploadOpen(true)}
         onExportDocx={handleExportDocx}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenImageViewer={() => setIsImageViewerOpen(true)}
         onPrint={handlePrint}
+        onOpenProfile={(tab) => {
+          setProfileInitialTab(tab || 'avatar');
+          setIsProfileOpen(true);
+        }}
+        onOpenAdmin={() => setIsAdminOpen(true)}
+        onSwitchAccount={() => setIsLoginOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Floating Export Notice Banner */}
@@ -139,6 +212,12 @@ export const App: React.FC = () => {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 space-y-8">
+        {/* Multi-level & Multi-curriculum Math Selector Banner */}
+        <CurriculumBanner
+          user={currentUser}
+          onUpdateCurriculum={handleUpdateCurriculum}
+        />
+
         {/* Dashboard Overview Component */}
         <DashboardOverview
           summary={summary}
@@ -149,6 +228,7 @@ export const App: React.FC = () => {
 
         {/* Prominent Drag & Drop Zone on Home Page for any week's homework */}
         <DropZoneSection
+          currentUser={currentUser}
           onGradingComplete={(res) => {
             setQuestions(res.questions);
             setSummary(res.summary);
@@ -165,7 +245,7 @@ export const App: React.FC = () => {
               </span>
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
-              Đối chiếu đáp án của Ruby, giải thích phương pháp giải chuẩn SGK cho tất cả các câu (đúng & sai)
+              Đối chiếu đáp án của {currentUser.fullName}, giải thích phương pháp giải chuẩn cho tất cả các câu (đúng & sai)
             </p>
           </div>
 
@@ -179,8 +259,8 @@ export const App: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Dạng Thẻ Chi Tiết</span>
+              <LayoutGrid className="w-4 h-4" />
+              <span>Dạng thẻ bài</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
@@ -190,103 +270,105 @@ export const App: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <TableIcon className="w-3.5 h-3.5" />
-              <span>Bảng Chuẩn File Word</span>
+              <TableIcon className="w-4 h-4" />
+              <span>Bảng đối chiếu</span>
             </button>
           </div>
         </div>
 
-        {/* Filter controls */}
+        {/* Filters and Search Bar */}
         <QuestionFilters
           questions={questions}
           activeFilter={activeFilter}
-          onFilterChange={(f) => setActiveFilter(f)}
+          onFilterChange={setActiveFilter}
           searchQuery={searchQuery}
-          onSearchChange={(q) => setSearchQuery(q)}
+          onSearchChange={setSearchQuery}
           selectedCategory={selectedCategory}
-          onCategoryChange={(c) => setSelectedCategory(c)}
+          onCategoryChange={setSelectedCategory}
           sortBy={sortBy}
-          onSortChange={(s) => setSortBy(s)}
+          onSortChange={setSortBy}
         />
 
-        {/* View Mode 1: Cards */}
-        {viewMode === 'cards' && (
-          <div className="space-y-4">
+        {/* Question Content View */}
+        {viewMode === 'cards' ? (
+          /* Cards Grid View */
+          <div className="space-y-6">
             {filteredQuestions.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 p-6">
-                <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <h4 className="text-base font-bold text-slate-800">Không tìm thấy câu hỏi phù hợp</h4>
-                <p className="text-xs text-slate-500 mt-1">
-                  Ruby hãy thử đổi bộ lọc hoặc tìm kiếm từ khóa khác nhé!
+              <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
+                <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h4 className="text-lg font-bold text-slate-800">Không tìm thấy câu hỏi phù hợp</h4>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                  Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm &ldquo;Tất cả&rdquo; để xem toàn bộ 63 câu hỏi.
                 </p>
                 <button
                   onClick={() => {
                     setActiveFilter('all');
-                    setSearchQuery('');
                     setSelectedCategory('all');
+                    setSearchQuery('');
                   }}
-                  className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs"
                 >
-                  Xem lại tất cả câu hỏi
+                  Đặt lại bộ lọc
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredQuestions.map((q) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                {filteredQuestions.map((question) => (
                   <QuestionCard
-                    key={q.id}
-                    question={q}
+                    key={question.id}
+                    question={question}
+                    studentName={currentUser.nickname || currentUser.fullName}
                     onFixed={handleFixedQuestion}
                   />
                 ))}
               </div>
             )}
           </div>
-        )}
-
-        {/* View Mode 2: Table format exactly like Word document */}
-        {viewMode === 'table' && (
-          <div className="space-y-6">
-            {partsGroup.map((group, pIdx) => (
-              <div key={pIdx} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-base font-bold text-slate-900">{group.title}</h4>
-                  <span className="text-xs font-semibold text-slate-500">{group.items.length} câu</span>
+        ) : (
+          /* Table View matching original Word Document layout */
+          <div className="space-y-8">
+            {partsGroup.map((part, pIdx) => (
+              <div key={pIdx} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+                  <h4 className="font-extrabold text-sm sm:text-base text-slate-900">{part.title}</h4>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    {part.items.length} câu
+                  </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-100/70 text-slate-700 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                      <tr>
-                        <th className="py-3 px-6 w-20 text-center">Câu</th>
-                        <th className="py-3 px-6">Chuyên Đề</th>
-                        <th className="py-3 px-6 text-center">Đáp Án Ruby Ghi</th>
-                        <th className="py-3 px-6 text-center">Đáp Án Đúng</th>
-                        <th className="py-3 px-6 text-center">Nhận Xét</th>
-                        <th className="py-3 px-6">Hướng Dẫn / Giải Thích</th>
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100/60 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                        <th className="py-3 px-6 text-center w-16">Câu</th>
+                        <th className="py-3 px-6">Dạng Toán</th>
+                        <th className="py-3 px-6 text-center">Đáp án con ghi</th>
+                        <th className="py-3 px-6 text-center">Đáp án đúng</th>
+                        <th className="py-3 px-6 text-center">Nhận xét</th>
+                        <th className="py-3 px-6">Tóm tắt hướng dẫn</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {group.items.map((item) => {
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {part.items.map((item) => {
                         let statusBadge = (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                            <CheckCircle className="w-3.5 h-3.5" /> Đúng theo ảnh
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <CheckCircle className="w-3.5 h-3.5" /> Đúng
                           </span>
                         );
                         if (item.status === 'wrong') {
                           statusBadge = (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
-                              <AlertCircle className="w-3.5 h-3.5" /> Sai / cần sửa
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
+                              Sai / cần sửa
                             </span>
                           );
                         } else if (item.status === 'need_verify') {
                           statusBadge = (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
                               Cần xác minh
                             </span>
                           );
                         } else if (item.status === 'unanswered') {
                           statusBadge = (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                               Chưa làm
                             </span>
                           );
@@ -296,7 +378,7 @@ export const App: React.FC = () => {
                           <tr
                             key={item.id}
                             className={`hover:bg-slate-50/80 transition-colors ${
-                              item.status === 'wrong' ? 'bg-rose-50/20' : ''
+                              item.status === 'wrong' ? 'bg-rose-50/30' : ''
                             }`}
                           >
                             <td className="py-3 px-6 text-center font-bold text-slate-900">
@@ -335,6 +417,7 @@ export const App: React.FC = () => {
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
+        currentUser={currentUser}
         onGradingComplete={(res) => {
           setQuestions(res.questions);
           setSummary(res.summary);
@@ -352,6 +435,40 @@ export const App: React.FC = () => {
         summary={summary}
         onUpdateSummary={(updated) => setSummary((prev) => ({ ...prev, ...updated }))}
       />
+
+      {/* User & Auth Modals */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onLoginSuccess={handleLoginSuccess}
+        onClose={() => setIsLoginOpen(false)}
+        canClose={!!currentUser}
+      />
+
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={currentUser}
+        onUserUpdated={(updated) => {
+          setCurrentUser(updated);
+          setSummary((prev) => ({
+            ...prev,
+            studentName: updated.fullName,
+            grade: `${updated.currentGrade} • ${updated.targetProgram}`
+          }));
+        }}
+      />
+
+      {currentUser.role === 'admin' && (
+        <AdminManagementModal
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+          currentUser={currentUser}
+          onUsersChanged={() => {
+            const active = authService.getCurrentUser();
+            if (active) setCurrentUser(active);
+          }}
+        />
+      )}
     </div>
   );
 };

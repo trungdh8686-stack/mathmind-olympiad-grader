@@ -6,11 +6,27 @@ export interface GradingProgress {
   message: string;
 }
 
+export interface GradingContext {
+  studentName?: string;
+  level?: string;
+  grade?: string;
+  program?: string;
+}
+
 export async function gradeImagesWithAI(
   imageFiles: File[],
   apiKey?: string,
-  onProgress?: (p: GradingProgress) => void
+  onProgress?: (p: GradingProgress) => void,
+  context?: GradingContext
 ): Promise<{ questions: MathQuestion[]; summary: TestSummary }> {
+  const studentName = context?.studentName || 'Ruby Đoàn Minh Châu';
+  const levelStr = context?.level === 'high_school' 
+    ? 'THPT (Lớp 10 – 12)' 
+    : context?.level === 'secondary' 
+      ? 'THCS (Lớp 6 – 9)' 
+      : 'Tiểu học (Lớp 1 – 5)';
+  const programStr = context?.program || 'Olympic Toán Quốc Tế (ASMO, ITMC, GMATH, SASMO, AMO, Kangaroo)';
+
   if (onProgress) {
     onProgress({ status: 'uploading', progress: 15, message: 'Đang tải lên và xử lý hình ảnh bài làm...' });
   }
@@ -37,15 +53,18 @@ export async function gradeImagesWithAI(
 
   if (effectiveKey && effectiveKey.length > 10) {
     if (onProgress) {
-      onProgress({ status: 'ai_evaluating', progress: 40, message: 'Đang kết nối Gemini Vision AI để đọc chữ viết tay và giải toán...' });
+      onProgress({ status: 'ai_evaluating', progress: 40, message: `Đang kết nối Gemini Vision AI để giải toán cấp ${levelStr} chuẩn ${programStr}...` });
     }
 
     try {
       // Call Google Gemini API
       const parts: any[] = [
         {
-          text: `Bạn là một giáo viên chuyên gia Toán học Việt Nam, chuyên bồi dưỡng học sinh giỏi và Olympic Toán (SASMO, TIMO, AMO, Kangaroo). 
-Nhiệm vụ của bạn: Hãy phân tích các trang bài tập đính kèm của học sinh Ruby Đoàn Minh Châu. Nhận diện từng câu hỏi (câu số mấy), đề bài toán, chữ viết tay của học sinh (đáp án của con), tính toán đáp án đúng chuẩn sư phạm Việt Nam, nhận xét Đúng / Sai / Cần xác minh, và giải thích chi tiết từng bước.
+          text: `Bạn là một giáo viên chuyên gia Toán học hàng đầu Việt Nam, chuyên bồi dưỡng học sinh giỏi các cấp ${levelStr} và các kỳ thi Toán Quốc tế (${programStr}). 
+Nhiệm vụ của bạn: Hãy phân tích các trang bài tập đính kèm của học sinh ${studentName}.
+- Cấp học: ${levelStr}
+- Chương trình / Kỳ thi mục tiêu: ${programStr}
+- Yêu cầu: Nhận diện từng câu hỏi (câu số mấy), đề bài toán, chữ viết tay của học sinh (đáp án thực tế con đã ghi, giữ nguyên không ghi chung chung), tính toán đáp án đúng chuẩn sư phạm Việt Nam theo đúng cấp học (Tiểu học giải theo sơ đồ đoạn thẳng/suy luận logic; THCS/THPT giải theo đại số/hình học chuẩn), nhận xét Đúng / Sai / Cần xác minh, và giải thích chi tiết từng bước.
 Hãy trả về JSON theo định dạng sau:
 {
   "title": "KẾT QUẢ CHẤM ĐIỂM BÀI TẬP TOÁN",
@@ -53,14 +72,14 @@ Hãy trả về JSON theo định dạng sau:
   "questions": [
     {
       "id": 1,
-      "title": "Câu 1: Bài toán tuổi",
+      "title": "Câu 1: Bài toán",
       "question": "Nội dung câu hỏi...",
       "keywords": "Từ khóa...",
       "studentAnswer": "22",
       "correctAnswer": "22",
       "status": "correct", // "correct" | "wrong" | "unanswered" | "need_verify"
       "statusText": "Đúng theo ảnh",
-      "category": "Bài toán tuổi & Thời gian",
+      "category": "Số học",
       "difficulty": "Cơ bản",
       "explanation": "Giải thích ngắn gọn...",
       "solutionSteps": ["Bước 1...", "Bước 2..."],
@@ -146,8 +165,8 @@ Hãy trả về JSON theo định dạng sau:
           const summary: TestSummary = {
             title: parsed.title || 'ĐỐI CHIẾU ĐÁP ÁN BÀI TẬP TOÁN',
             subtitle: `Chấm tự động bằng Gemini Vision AI từ ${imageFiles.length} trang ảnh.`,
-            studentName: 'Ruby Đoàn Minh Châu',
-            grade: 'Olympic Toán',
+            studentName: studentName,
+            grade: `${levelStr} • ${programStr}`,
             testDate: new Date().toLocaleDateString('vi-VN'),
             totalQuestions: qList.length,
             correctCount,
@@ -158,7 +177,7 @@ Hãy trả về JSON theo định dạng sau:
             accuracyRate: Number(((correctCount / qList.length) * 100).toFixed(1)),
             completionRate: Number((((qList.length - unansweredCount) / qList.length) * 100).toFixed(1)),
             sourceImagesCount: imageFiles.length,
-            notes: 'Kết quả được phân tích và nhận diện trực tiếp bằng Gemini Vision AI từ bài làm học sinh.'
+            notes: `Kết quả được phân tích và nhận diện trực tiếp bằng Gemini Vision AI cho ${studentName}.`
           };
 
           return { questions: qList, summary };
@@ -171,9 +190,9 @@ Hãy trả về JSON theo định dạng sau:
 
   // Simulation mode (for testing without key or fallback)
   if (onProgress) {
-    onProgress({ status: 'ocr_scanning', progress: 45, message: 'Đang quét OCR nhận diện chữ viết tay học sinh...' });
+    onProgress({ status: 'ocr_scanning', progress: 45, message: `Đang quét OCR nhận diện chữ viết tay học sinh ${studentName}...` });
     await new Promise(r => setTimeout(r, 900));
-    onProgress({ status: 'ai_evaluating', progress: 75, message: 'Đang đối chiếu phương pháp giải chuẩn Toán Việt Nam...' });
+    onProgress({ status: 'ai_evaluating', progress: 75, message: `Đang đối chiếu phương pháp giải ${levelStr} chuẩn ${programStr}...` });
     await new Promise(r => setTimeout(r, 900));
     onProgress({ status: 'generating_report', progress: 95, message: 'Đang tổng hợp dashboard và phân tích lỗi sai...' });
     await new Promise(r => setTimeout(r, 600));
@@ -189,8 +208,8 @@ Hãy trả về JSON theo định dạng sau:
   const summary: TestSummary = {
     title: 'ĐỐI CHIẾU ĐÁP ÁN – LUYỆN TOÁN CUỐI TUẦN 11',
     subtitle: `Tổng hợp từ ${imageFiles.length > 0 ? imageFiles.length : 5} ảnh bài tập (câu 1–63). Các câu chưa đọc rõ hình/đề được đánh dấu “Cần xác minh”.`,
-    studentName: 'Ruby Đoàn Minh Châu',
-    grade: 'Olympic Toán Tiểu học / THCS',
+    studentName: studentName,
+    grade: `${levelStr} • ${programStr}`,
     testDate: new Date().toLocaleDateString('vi-VN'),
     totalQuestions: INITIAL_QUESTIONS.length,
     correctCount,

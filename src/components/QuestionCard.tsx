@@ -19,9 +19,10 @@ import { MathView } from './MathView';
 interface QuestionCardProps {
   question: MathQuestion;
   onFixed?: (questionId: number) => void;
+  studentName?: string;
 }
 
-export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed }) => {
+export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed, studentName = 'Ruby' }) => {
   // Wrong questions start expanded; correct questions can be expanded with 1 click
   const [isExpanded, setIsExpanded] = useState<boolean>(question.status === 'wrong');
   const [retryInput, setRetryInput] = useState<string>('');
@@ -154,7 +155,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onFixed })
           isWrong ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
         }`}>
           <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đáp án Ruby ghi</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đáp án {studentName} ghi</div>
             <div className={`text-lg sm:text-xl font-extrabold mt-0.5 ${
               isWrong ? 'text-rose-600 line-through decoration-rose-500 decoration-2' : 'text-slate-800'
             }`}>

@@ -3,16 +3,20 @@ import { X, Upload, Camera, Sparkles, Image as ImageIcon, Trash2, CheckCircle, R
 import { gradeImagesWithAI, GradingProgress } from '../services/aiGrader';
 import { MathQuestion, TestSummary } from '../data/mockData';
 
+import { User } from '../types/auth';
+
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGradingComplete: (result: { questions: MathQuestion[]; summary: TestSummary }) => void;
+  currentUser?: User;
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
-  onGradingComplete
+  onGradingComplete,
+  currentUser
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -62,7 +66,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     const apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
 
     try {
-      const result = await gradeImagesWithAI(files, apiKey, (p) => setProgress(p));
+      const result = await gradeImagesWithAI(
+        files,
+        apiKey,
+        (p) => setProgress(p),
+        {
+          studentName: currentUser?.fullName,
+          level: currentUser?.level,
+          grade: currentUser?.currentGrade,
+          program: currentUser?.targetProgram
+        }
+      );
       setTimeout(() => {
         onGradingComplete(result);
         onClose();
@@ -80,7 +94,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleLoadSample = async () => {
     setProgress({ status: 'uploading', progress: 20, message: 'Đang tải lại dữ liệu mẫu bài tập...' });
-    const result = await gradeImagesWithAI([], '', (p) => setProgress(p));
+    const result = await gradeImagesWithAI(
+      [],
+      '',
+      (p) => setProgress(p),
+      {
+        studentName: currentUser?.fullName,
+        level: currentUser?.level,
+        grade: currentUser?.currentGrade,
+        program: currentUser?.targetProgram
+      }
+    );
     onGradingComplete(result);
     onClose();
   };
