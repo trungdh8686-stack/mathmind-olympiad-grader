@@ -144,21 +144,27 @@ Hãy trả về DUY NHẤT một JSON hợp lệ (không kèm markdown ngoài JS
 
       for (const model of modelsToTry) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 14000); // 14s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
 
         try {
+          const reqBody: any = {
+            contents: [{ parts }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.2
+            }
+          };
+
+          if (model.includes('gemini-3')) {
+            reqBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+          }
+
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: {
-                  responseMimeType: 'application/json',
-                  temperature: 0.2
-                }
-              }),
+              body: JSON.stringify(reqBody),
               signal: controller.signal
             }
           );
