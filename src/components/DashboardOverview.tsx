@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { MathQuestion, TestSummary } from '../data/mockData';
 import { UserProgressStats } from '../services/sessionService';
-import { Upload, Calendar, Play } from 'lucide-react';
+import { Upload, Calendar, Play, FileDown } from 'lucide-react';
 
 interface DashboardOverviewProps {
   summary: TestSummary;
@@ -26,6 +26,7 @@ interface DashboardOverviewProps {
   onUploadNew?: () => void;
   onOpenSolver?: () => void;
   onStartPractice?: () => void;
+  onExportDocx?: () => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -37,7 +38,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onOpenHistory,
   onUploadNew,
   onOpenSolver,
-  onStartPractice
+  onStartPractice,
+  onExportDocx
 }) => {
   const handleCardClick = (filter: string) => {
     onSelectFilter(filter);
@@ -229,8 +231,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Chúc mừng {summary.studentName}! 🎉
             </h2>
             <p className="text-sm sm:text-base text-blue-100 leading-relaxed font-normal">
-              Con đã xuất sắc hoàn thành <strong className="text-white font-bold">{summary.totalQuestions - summary.unansweredCount}/{summary.totalQuestions} câu hỏi</strong> trong bộ đề rèn luyện tư duy Olympic. Hãy bấm vào các thẻ bên dưới để xem hướng dẫn giải chi tiết chuẩn SGK và thử giải lại 17 câu thử thách nhé!
+              Con đã xuất sắc hoàn thành <strong className="text-white font-bold">{summary.totalQuestions - summary.unansweredCount}/{summary.totalQuestions} câu hỏi</strong> trong bộ đề rèn luyện tư duy Olympic. Hãy bấm vào các thẻ bên dưới để xem hướng dẫn giải chi tiết chuẩn SGK và thử giải lại các câu thử thách nhé!
             </p>
+
+            {onExportDocx && questions.length > 0 && (
+              <div className="pt-2">
+                <button
+                  onClick={onExportDocx}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-blue-50 text-blue-900 font-extrabold text-xs sm:text-sm shadow-lg shadow-black/10 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer ring-2 ring-white/40"
+                  title="Tải về file Word (.docx) chứa toàn bộ đề bài, đáp số chuẩn và hướng dẫn giải từng bước"
+                >
+                  <FileDown className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Tải file Word (.docx) kèm Lời giải chi tiết {questions.length} câu</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Score Badge */}

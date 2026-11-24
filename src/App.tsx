@@ -246,16 +246,27 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleExportDocx = async () => {
+  const handleExportDocx = async (targetSummary?: TestSummary, targetQuestions?: MathQuestion[]) => {
     try {
-      setExportNotice('Đang xuất file Word (.docx)...');
-      await exportTestToDocx(
-        summary,
-        questions,
-        `Dap_an_Luyen_Toan_${currentUser.nickname || summary.studentName.replace(/\s+/g, '_')}.docx`
-      );
-      setExportNotice('Đã tải xuống file Word thành công! 🎉');
-      setTimeout(() => setExportNotice(null), 3000);
+      const activeSum = targetSummary || summary;
+      const activeQs = targetQuestions || questions;
+
+      if (!activeQs || activeQs.length === 0) {
+        setExportNotice('Không có câu hỏi nào để xuất file. Vui lòng chọn phiên làm bài.');
+        setTimeout(() => setExportNotice(null), 3000);
+        return;
+      }
+
+      setExportNotice(`Đang tạo file Word (.docx) kèm lời giải chi tiết ${activeQs.length} câu...`);
+      const now = new Date();
+      const timePad = `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+      const datePad = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+      const studentTag = (currentUser.nickname || activeSum.studentName || 'Ruby').replace(/\s+/g, '_');
+      const filename = `Loi_Giai_Chi_Tiet_Toan_${studentTag}_${datePad}_${timePad}.docx`;
+
+      await exportTestToDocx(activeSum, activeQs, filename);
+      setExportNotice(`Đã tải file Word: Đầy đủ bảng điểm + Lời giải chi tiết ${activeQs.length} câu! 🎉`);
+      setTimeout(() => setExportNotice(null), 4000);
     } catch (err) {
       console.error(err);
       setExportNotice('Có lỗi khi tạo file Word. Vui lòng thử lại.');
@@ -356,6 +367,7 @@ export const App: React.FC = () => {
           onOpenHistory={() => setIsHistoryModalOpen(true)}
           onUploadNew={() => setIsUploadOpen(true)}
           onOpenSolver={() => setIsSolverOpen(true)}
+          onExportDocx={() => handleExportDocx()}
           onStartPractice={() => {
             document.getElementById('exam-bank-section')?.scrollIntoView({ behavior: 'smooth' });
           }}
@@ -593,6 +605,7 @@ export const App: React.FC = () => {
         activeSessionId={activeSessionId}
         onSelectSession={handleSelectSession}
         onSessionsChanged={handleSessionsChanged}
+        onExportSession={(sess) => handleExportDocx(sess.summary, sess.questions)}
       />
 
       <ImageViewerModal

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Calendar, Award, CheckCircle2, ChevronRight, Trash2, Clock, BookOpen, AlertCircle } from 'lucide-react';
+import { X, Calendar, Award, CheckCircle2, ChevronRight, Trash2, Clock, BookOpen, AlertCircle, FileDown } from 'lucide-react';
 import { ExamSession, sessionService } from '../services/sessionService';
 import { User } from '../types/auth';
 
@@ -10,6 +10,7 @@ interface SessionHistoryModalProps {
   onSelectSession: (session: ExamSession) => void;
   activeSessionId?: string;
   onSessionsChanged: () => void;
+  onExportSession?: (session: ExamSession) => void;
 }
 
 export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
@@ -18,7 +19,8 @@ export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
   currentUser,
   onSelectSession,
   activeSessionId,
-  onSessionsChanged
+  onSessionsChanged,
+  onExportSession
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -173,10 +175,25 @@ export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
                           </div>
                         </div>
 
+                        {onExportSession && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onExportSession(sess);
+                            }}
+                            className="p-1.5 px-2.5 text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-900 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 shadow-xs cursor-pointer"
+                            title="Tải về file Word (.docx) kèm đề bài và lời giải chi tiết từng bước"
+                          >
+                            <FileDown className="w-3.5 h-3.5 text-blue-600" />
+                            <span className="hidden sm:inline">Tải Word</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={(e) => handleDelete(e, sess.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Xóa phiên kiểm tra này"
                         >
                           <Trash2 className="w-4 h-4" />
