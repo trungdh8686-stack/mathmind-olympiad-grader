@@ -8,6 +8,7 @@ interface HeaderProps {
   summary: TestSummary;
   currentUser: User;
   onOpenUpload: () => void;
+  onOpenSolver: () => void;
   onExportDocx: () => void;
   onOpenSettings: () => void;
   onOpenImageViewer: () => void;
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   summary,
   currentUser,
   onOpenUpload,
+  onOpenSolver,
   onExportDocx,
   onOpenSettings,
   onOpenImageViewer,
@@ -105,11 +107,21 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Upload New Test */}
             <button
               onClick={onOpenUpload}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl transition-all shadow-sm shadow-emerald-600/20 whitespace-nowrap"
-              title="Chụp hoặc tải ảnh đề bài tuần mới để AI chấm điểm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl transition-all shadow-sm shadow-emerald-600/20 whitespace-nowrap cursor-pointer"
+              title="Chụp hoặc tải ảnh phiếu bài tập đã làm để AI chấm điểm"
             >
               <Camera className="w-4 h-4 shrink-0" />
               <span>Chấm bài mới</span>
+            </button>
+
+            {/* AI Math Solver (Dedicated photo problem solver) */}
+            <button
+              onClick={onOpenSolver}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-extrabold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 hover:from-amber-300 hover:to-orange-300 active:scale-95 rounded-xl transition-all shadow-md shadow-amber-500/20 whitespace-nowrap cursor-pointer ring-1 ring-amber-500/30"
+              title="Chụp ảnh bất kỳ đề bài toán nào để AI giải chi tiết từng bước & chỉ mẹo Olympic"
+            >
+              <Sparkles className="w-4 h-4 text-amber-950 shrink-0 fill-amber-950" />
+              <span>Giải bài toán AI</span>
             </button>
 
             {/* User Account Menu with Avatar */}

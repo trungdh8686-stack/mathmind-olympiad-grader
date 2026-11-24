@@ -13,6 +13,7 @@ import { SessionHistoryModal } from './components/SessionHistoryModal';
 import { QuestionFilters } from './components/QuestionFilters';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadModal } from './components/UploadModal';
+import { MathSolverModal } from './components/MathSolverModal';
 import { ImageViewerModal } from './components/ImageViewerModal';
 import { SettingsModal } from './components/SettingsModal';
 import { LoginModal } from './components/LoginModal';
@@ -88,6 +89,7 @@ export const App: React.FC = () => {
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
+  const [isSolverOpen, setIsSolverOpen] = useState<boolean>(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
@@ -303,6 +305,7 @@ export const App: React.FC = () => {
         summary={summary}
         currentUser={currentUser}
         onOpenUpload={() => setIsUploadOpen(true)}
+        onOpenSolver={() => setIsSolverOpen(true)}
         onExportDocx={handleExportDocx}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenImageViewer={() => setIsImageViewerOpen(true)}
@@ -341,6 +344,7 @@ export const App: React.FC = () => {
           userStats={userStats}
           onOpenHistory={() => setIsHistoryModalOpen(true)}
           onUploadNew={() => setIsUploadOpen(true)}
+          onOpenSolver={() => setIsSolverOpen(true)}
           onStartPractice={() => {
             document.getElementById('exam-bank-section')?.scrollIntoView({ behavior: 'smooth' });
           }}
@@ -551,6 +555,14 @@ export const App: React.FC = () => {
         onClose={() => setIsUploadOpen(false)}
         currentUser={currentUser}
         onGradingComplete={handleGradingComplete}
+        onOpenSolver={() => setIsSolverOpen(true)}
+      />
+
+      {/* AI Math Solver Modal (Trợ lý giải bài toán bằng AI) */}
+      <MathSolverModal
+        isOpen={isSolverOpen}
+        onClose={() => setIsSolverOpen(false)}
+        currentUser={currentUser}
       />
 
       {/* Online Exam Interactive Modal */}

@@ -24,6 +24,7 @@ interface DashboardOverviewProps {
   userStats?: UserProgressStats;
   onOpenHistory?: () => void;
   onUploadNew?: () => void;
+  onOpenSolver?: () => void;
   onStartPractice?: () => void;
 }
 
@@ -35,6 +36,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   userStats,
   onOpenHistory,
   onUploadNew,
+  onOpenSolver,
   onStartPractice
 }) => {
   const handleCardClick = (filter: string) => {
@@ -91,10 +93,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
             {/* Quick Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+              {onOpenSolver && (
+                <button
+                  onClick={onOpenSolver}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-sm shadow-lg shadow-amber-400/25 flex items-center justify-center gap-2 transition-all transform hover:scale-105 cursor-pointer ring-2 ring-white/30"
+                >
+                  <Sparkles className="w-4 h-4 fill-slate-950" />
+                  <span>Giải Bài Toán Bằng AI</span>
+                </button>
+              )}
               {onUploadNew && (
                 <button
                   onClick={onUploadNew}
-                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-105 cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm border border-white/30 backdrop-blur-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
                   <span>Chấm Bài Mới</span>
@@ -103,7 +114,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               {onStartPractice && (
                 <button
                   onClick={onStartPractice}
-                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm border border-white/30 backdrop-blur-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-blue-100 font-semibold text-sm border border-white/20 backdrop-blur-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
                   <span>Luyện Thi Ngay</span>
@@ -114,27 +125,39 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         {/* Informational Guidance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-              <Upload className="w-6 h-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <Sparkles className="w-5 h-5 fill-amber-500 text-amber-500" />
             </div>
-            <div className="space-y-1.5">
-              <h4 className="font-bold text-slate-900 text-base">1. Kéo thả & Chấm điểm ảnh bài tập</h4>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Tải lên 1 hoặc nhiều ảnh chụp phiếu bài tập trên lớp của con. AI Gemini Pro sẽ tự động nhận diện chữ viết tay, so khớp đáp án chuẩn và phân tích lỗi sai chi tiết từng bước.
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">1. Giải Bài Bằng AI (~3s)</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Gặp bài toán khó? Chỉ cần chụp ảnh hoặc gõ đề bài, AI giải chi tiết từng bước, mẹo thi Olympic và hỏi đáp 1-1.
               </p>
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0">
-              <BookOpen className="w-6 h-6" />
+          <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+              <Upload className="w-5 h-5" />
             </div>
-            <div className="space-y-1.5">
-              <h4 className="font-bold text-slate-900 text-base">2. Kho Đề Thi & Luyện Thi Trực Tuyến</h4>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Khám phá kho đề thi Olympic Quốc tế ASMO, ITMC, GMATH, Kangaroo và Chuyên Toán. Con làm bài trực tuyến có đồng hồ đếm ngược và xem điểm số ngay lập tức!
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">2. Chấm Điểm Ảnh Bài Làm</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Tải phiếu bài tập con đã làm. AI tự động OCR chữ viết tay, so khớp đáp án chuẩn và phân tích lỗi sai chi tiết.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex items-start gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">3. Kho Đề Thi Trực Tuyến</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Đề thi Olympic ASMO, ITMC, GMATH có bấm giờ, nộp bài tính điểm và giải thích từng bước song ngữ chuẩn mực.
               </p>
             </div>
           </div>

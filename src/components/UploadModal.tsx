@@ -9,6 +9,7 @@ interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGradingComplete: (result: { questions: MathQuestion[]; summary: TestSummary }) => void;
+  onOpenSolver?: () => void;
   currentUser?: User;
 }
 
@@ -16,6 +17,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
   onGradingComplete,
+  onOpenSolver,
   currentUser
 }) => {
   const [files, setFiles] = useState<File[]>([]);
@@ -150,7 +152,29 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="py-6 space-y-4">
+        <div className="py-5 space-y-4">
+          {/* Quick Switch to Solver */}
+          {onOpenSolver && !isGrading && (
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-amber-900 font-medium">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 fill-amber-500" />
+                <span>
+                  Đang có đề bài <strong>chưa làm</strong> cần xem hướng dẫn giải & đáp án?
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSolver();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shrink-0 transition-colors shadow-xs cursor-pointer"
+              >
+                Mở Trợ lý Giải toán 💡
+              </button>
+            </div>
+          )}
+
           {/* File Drag and Drop Zone */}
           {!isGrading ? (
             <div
