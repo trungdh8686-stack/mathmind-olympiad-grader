@@ -75,10 +75,36 @@ export const sessionService = {
     localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(sessions));
   },
 
+  // Đồng bộ đa thiết bị (PC <-> Mobile) với Supabase Cloud Database
+  async syncWithCloud(userId: string): Promise<ExamSession[]> {
+    try {
+      const { cloudDbService } = await import('./supabaseClient');
+      const cloudSessions = await cloudDbService.fetchUserSessions(userId);
+
+      if (cloudSessions && cloudSessions.length > 0) {
+        let localSessions = this.getAllSessions();
+        const sessionMap = new Map<string, ExamSession>();
+
+        // Nạp các session cục bộ trước
+        localSessions.forEach(s => sessionMap.set(s.id, s));
+
+        // Nạp và ghi đè bằng các session trên Cloud (Supabase là nguồn chuẩn giữa PC và Mobile)
+        cloudSessions.forEach(s => sessionMap.set(s.id, s));
+
+        const merged = Array.from(sessionMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+        this.saveAllSessions(merged);
+
+        return merged.filter(s => s.userId === userId);
+      }
+    } catch (e) {
+      console.warn('Đồng bộ Supabase thất bại:', e);
+    }
+    return this.getUserSessions(userId);
+  },
+
   // Lấy danh sách các phiên kiểm tra của một con cụ thể
   getUserSessions(userId: string): ExamSession[] {
     const all = this.getAllSessions();
-    // Sort newest first
     return all
       .filter(s => s.userId === userId)
       .sort((a, b) => b.timestamp - a.timestamp);
@@ -125,21 +151,33 @@ export const sessionService = {
     all.unshift(newSession);
     this.saveAllSessions(all);
 
-    // Asynchronously sync with Supabase Cloud Database if configured
+    // Đồng bộ lập tức lên Supabase Cloud Database để điện thoại / máy tính khác thấy ngay
     import('./supabaseClient')
       .then(({ cloudDbService }) => {
         cloudDbService.saveSession(newSession);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('Không thể gửi session lên Supabase:', err);
+      });
 
     return newSession;
   },
 
-  // Xóa một phiên kiểm tra
-  deleteSession(sessionId: string): void {
+  // Xóa một phiên kiểm tra (cả cục bộ và trên cloud)
+  async deleteSession(sessionId: string): Promise<void> {
     let all = this.getAllSessions();
     all = all.filter(s => s.id !== sessionId);
     this.saveAllSessions(all);
+
+    try {
+      const { getSupabase } = await import('./supabaseClient');
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.from('exam_sessions').delete().eq('id', sessionId);
+      }
+    } catch (e) {
+      console.warn('Lỗi xóa session trên Supabase:', e);
+    }
   },
 
   // Tính toán thống kê điểm trung bình & tiến độ qua các lần kiểm tra

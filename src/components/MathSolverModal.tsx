@@ -24,7 +24,8 @@ import {
   Trash2,
   ChevronRight,
   Eye,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { User } from '../types/auth';
 import {
@@ -36,6 +37,7 @@ import {
   askFollowUpQuestionToAI,
   SolverChatMessage
 } from '../services/mathSolverService';
+import { exportSolverSessionToDocx } from '../utils/docxExport';
 import { MathView } from './MathView';
 
 interface MathSolverModalProps {
@@ -203,6 +205,15 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
     navigator.clipboard.writeText(textToCopy);
     setCopiedText('solution');
     setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  const handleExportWord = async () => {
+    if (!activeSession) return;
+    try {
+      await exportSolverSessionToDocx(activeSession);
+    } catch (err) {
+      console.error('Lỗi xuất file Word bài giải:', err);
+    }
   };
 
   const handleSendChat = async () => {
@@ -590,6 +601,15 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportWord}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/25 cursor-pointer"
+                    title="Tải về file Word (.docx) chứa toàn bộ đề bài và lời giải chi tiết chuẩn định dạng"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Tải file Word</span>
+                  </button>
+
                   <button
                     onClick={handleReset}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 transition-colors cursor-pointer"

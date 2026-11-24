@@ -122,6 +122,17 @@ export const App: React.FC = () => {
         notes: `Tài khoản của ${currentUser.fullName} chưa có dữ liệu. Bắt đầu bằng cách kéo thả ảnh bài làm hoặc chọn bài thi trong Kho đề.`
       });
     }
+
+    // Tự động đồng bộ Supabase Cloud để đa thiết bị (Mobile <-> PC) luôn nhận phiên mới nhất
+    sessionService.syncWithCloud(currentUser.id).then((cloudSessions) => {
+      if (cloudSessions && cloudSessions.length > 0) {
+        const top = cloudSessions[0];
+        setActiveSessionId(top.id);
+        setQuestions(top.questions);
+        setSummary(top.summary);
+        setSessionsVersion(v => v + 1);
+      }
+    });
   }, [currentUser.id]);
 
   // Compute student's overall multi-session statistics

@@ -31,6 +31,16 @@ export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsSyncing(true);
+    sessionService.syncWithCloud(currentUser.id)
+      .then(() => onSessionsChanged())
+      .finally(() => setIsSyncing(false));
+  }, [isOpen, currentUser.id]);
+
   if (!isOpen) return null;
 
   const sessions = sessionService.getUserSessions(currentUser.id);
@@ -39,8 +49,9 @@ export const SessionHistoryModal: React.FC<SessionHistoryModalProps> = ({
   const handleDelete = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     if (confirm('Sếp có chắc chắn muốn xóa phiên chấm điểm này không?')) {
-      sessionService.deleteSession(sessionId);
-      onSessionsChanged();
+      sessionService.deleteSession(sessionId).then(() => {
+        onSessionsChanged();
+      });
     }
   };
 
