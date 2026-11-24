@@ -8,25 +8,30 @@ export interface SolverOptions {
   userNote?: string;
 }
 
-export interface SolutionStep {
-  stepNumber: number;
-  stepTitle: string;
-  content: string;
-  subNotes?: string;
-}
-
-export interface SolvedMathResult {
+export interface SolvedQuestionItem {
+  questionNumber: number | string;
   title: string;
-  problemTextVi: string;
-  problemTextEn?: string;
+  textEn: string;
+  textVi: string;
   category: string;
-  gradeLevel: string;
   difficulty: 'Cơ bản' | 'Nâng cao' | 'Olympic / Học sinh giỏi';
   finalAnswer: string;
-  solutionSteps: SolutionStep[];
-  olympiadTips: string[];
-  coreFormulas: string[];
+  solutionSteps: string[];
+  tips?: string;
+  coreFormulas?: string[];
   alternateMethod?: string;
+}
+
+export interface SolverSession {
+  id: string;
+  createdAt: string;
+  timestamp: number;
+  examTitle: string;
+  gradeLevel: string;
+  totalQuestions: number;
+  imageThumbnail?: string;
+  rawOcrText: string;
+  questions: SolvedQuestionItem[];
 }
 
 export interface SolverChatMessage {
@@ -35,83 +40,125 @@ export interface SolverChatMessage {
   timestamp: string;
 }
 
-const FAST_MODELS = ['gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+const STORAGE_KEY = 'MATHMIND_SOLVER_SESSIONS';
+
+// Local storage session management
+export function getSolverSessions(): SolverSession[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const list: SolverSession[] = JSON.parse(raw);
+    return Array.isArray(list) ? list.sort((a, b) => b.timestamp - a.timestamp) : [];
+  } catch (e) {
+    console.warn('Failed to load solver sessions:', e);
+    return [];
+  }
+}
+
+export function saveSolverSession(session: SolverSession): void {
+  try {
+    const existing = getSolverSessions().filter(s => s.id !== session.id);
+    const updated = [session, ...existing].slice(0, 30); // keep last 30 sessions
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to save solver session:', e);
+  }
+}
+
+export function deleteSolverSession(id: string): void {
+  try {
+    const existing = getSolverSessions().filter(s => s.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch (e) {
+    console.warn('Failed to delete solver session:', e);
+  }
+}
+
+export function getSolverSessionById(id: string): SolverSession | null {
+  const sessions = getSolverSessions();
+  return sessions.find(s => s.id === id) || null;
+}
+
+const FAST_MODELS = ['gemini-3-flash-preview', 'gemini-3.5-flash-lite'];
 
 export async function solveMathProblemWithAI(
   input: { imageFile?: File; textPrompt?: string },
   options: SolverOptions = {},
   onProgress?: (progress: number, message: string) => void
-): Promise<SolvedMathResult> {
+): Promise<SolverSession> {
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
   const effectiveKey = (options.apiKey && options.apiKey.trim().length > 10) ? options.apiKey.trim() : (envKey || '');
 
-  const grade = options.gradeLevel || 'Tự động phát hiện theo cấp độ đề bài';
+  const grade = options.gradeLevel || 'Lớp 3 (Ruby Đoàn Minh Châu)';
   const program = options.program || 'Toán học Việt Nam & Kỳ thi Olympic Quốc Tế (ASMO, ITMC, GMATH, Kangaroo)';
+
+  if (!effectiveKey) {
+    throw new Error('Chưa cấu hình API Key Gemini. Vui lòng bấm Cài đặt ở góc trên để nhập API Key.');
+  }
 
   if (onProgress) onProgress(15, 'Đang chuẩn bị đề bài toán...');
 
   let imageBase64: string | undefined;
+  let imageThumbnail: string | undefined;
+
   if (input.imageFile) {
-    if (onProgress) onProgress(30, 'Đang tối ưu ảnh chụp để nhận diện siêu tốc...');
+    if (onProgress) onProgress(30, 'Đang tối ưu & nén ảnh để nhận diện OCR tốc độ cao...');
     const compressed = await compressImage(input.imageFile, {
-      maxWidth: 1400,
-      maxHeight: 1400,
+      maxWidth: 1600,
+      maxHeight: 1600,
       quality: 0.85
     });
     imageBase64 = compressed.base64;
+    imageThumbnail = `data:image/jpeg;base64,${compressed.base64.substring(0, 5000)}`; // brief preview
   }
 
-  if (onProgress) onProgress(50, 'Gemini AI đang đọc đề bài, giải toán và phân tích phương pháp...');
+  if (onProgress) onProgress(50, 'Gemini AI đang OCR chuyển toàn bộ đề bài ra Text và tính toán lời giải...');
 
-  const systemInstruction = `Bạn là Chuyên gia Bồi dưỡng Học sinh Giỏi Toán học hàng đầu Việt Nam và Huấn luyện viên các kỳ thi Olympic Toán quốc tế (ASMO, ITMC, SASMO, AMO, Kangaroo, GMATH).
-Nhiệm vụ: Giải chi tiết bài toán được cung cấp (qua ảnh hoặc văn bản) cho học sinh cấp độ: ${grade}.
+  const systemPrompt = `Bạn là Chuyên gia Bồi dưỡng Học sinh Giỏi Toán học hàng đầu Việt Nam và Huấn luyện viên các kỳ thi Olympic Toán quốc tế (ASMO, ITMC, SASMO, Kangaroo, GMATH).
+Nhiệm vụ: Phân tích ảnh chụp đề thi hoặc văn bản được cung cấp cho học sinh cấp độ: ${grade}.
 Chương trình mục tiêu: ${program}.
 
-HÃY ĐẢM BẢO:
-1. Đọc chính xác toàn bộ đề bài toán từ ảnh hoặc văn bản (cả tiếng Anh nếu là đề Olympic song ngữ).
-2. Viết lời giải sư phạm từng bước rõ ràng, dễ hiểu nhất theo đúng lứa tuổi của con:
-   - Nếu là Tiểu học (Lớp 1 - 5, ví dụ Lớp 1 Tony, Lớp 3 Ruby): Giải trực quan, dùng phương pháp vẽ sơ đồ đoạn thẳng, suy luận logic, ngôn ngữ gần gũi.
-   - Nếu là THCS (Lớp 6 - 9, ví dụ Lớp 6 Lisa): Trình bày đại số chuẩn chỉ, lập luận hình học chặt chẽ.
-   - Nếu là THPT (Lớp 10 - 12, ví dụ Lớp 10 Chip): Áp dụng chuẩn công thức lớp 10 (hàm số, phương trình, vector, bất đẳng thức, giải tích).
-3. Đưa ra "Đáp số cuối cùng" rõ ràng, nổi bật.
-4. Cung cấp "Bí kíp / Mẹo giải nhanh Olympic" (Short-cut / Tricks) để giải trong 30 giây hoặc tránh bẫy.
-5. Cung cấp các công thức toán học cốt lõi liên quan.
-6. Nếu có cách giải thứ 2 (cách trắc nghiệm hoặc phương pháp suy luận ngược), hãy ghi vào "alternateMethod".
+QUY TẮC BẮT BUỘC:
+1. NHẬN DIỆN VÀ CHUYỂN TOÀN BỘ ẢNH THÀNH TEXT (OCR):
+   - Nhận diện đầy đủ toàn bộ chữ tiếng Anh và chú thích tiếng Việt trong ảnh không bỏ sót bất kỳ câu nào.
+   - Tập hợp toàn bộ nội dung đề bài thuần vào trường "rawOcrText" để người dùng có thể đọc, sao chép hoặc in ấn.
+2. PHÂN LOẠI VÀ GIẢI TỪNG CÂU HỎI TRONG ĐỀ:
+   - Nếu ảnh có nhiều câu hỏi (ví dụ Câu 23, 24, 25, 26...), hãy trích xuất và giải ĐẦY ĐỦ TẤT CẢ các câu hỏi có trong ảnh.
+   - Với mỗi câu hỏi:
+     + Trích xuất đề bài gốc (tiếng Anh) vào "textEn" (nếu có).
+     + Bản dịch chuẩn mực tiếng Việt vào "textVi".
+     + Phân loại dạng toán (Số học / Hình học / Đếm / Logic / Tổ hợp / Lập số / Tiền tệ...).
+     + "finalAnswer": Đáp số cuối cùng ngắn gọn, rõ ràng (ví dụ: "8 đồ chơi", "14 cách", "38 thẻ", "120 số").
+     + "solutionSteps": Các bước giải chi tiết từng bước chuẩn sư phạm Việt Nam phù hợp lứa tuổi học sinh (${grade}).
+     + "tips": Bí kíp / mẹo tư duy nhanh Olympic (Short-cut, bẫy trắc nghiệm cần tránh).
+     + "coreFormulas": Mảng các công thức hoặc quy tắc cốt lõi áp dụng trong bài.
 
-TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON THEO ĐỊNH DẠNG SAU:
+TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
 {
-  "title": "Tên hoặc chủ đề bài toán",
-  "problemTextVi": "Đề bài toán đầy đủ bằng tiếng Việt...",
-  "problemTextEn": "Đề bài tiếng Anh gốc (nếu là bài thi quốc tế có song ngữ, nếu không có hãy dịch sang tiếng Anh)",
-  "category": "Phân loại (Số học / Hình học / Đại số / Tổ hợp / Logic / Toán thực tế)",
-  "gradeLevel": "Lớp 1 | Lớp 3 | Lớp 6 | Lớp 10 | Đa cấp",
-  "difficulty": "Cơ bản | Nâng cao | Olympic / Học sinh giỏi",
-  "finalAnswer": "Kết quả cuối cùng ngắn gọn (ví dụ: 156 cm², 48 học sinh, x = 3...)",
-  "solutionSteps": [
+  "examTitle": "Tiêu đề bài thi nhận diện được từ ảnh (ví dụ: Đề Luyện Thi Olympic Toán - Câu 23 đến 26)",
+  "rawOcrText": "Toàn bộ văn bản thô trích xuất từ ảnh...",
+  "gradeLevel": "${grade}",
+  "questions": [
     {
-      "stepNumber": 1,
-      "stepTitle": "Phân tích đề & Đặt ẩn/Vẽ sơ đồ",
-      "content": "Nội dung giải thích chi tiết bước 1...",
-      "subNotes": "Lưu ý hoặc chú giải phụ (nếu có)"
-    },
-    {
-      "stepNumber": 2,
-      "stepTitle": "Thực hiện phép tính / Biến đổi",
-      "content": "Nội dung bước 2..."
+      "questionNumber": 23,
+      "title": "Câu 23: Bài toán...",
+      "textEn": "English text...",
+      "textVi": "Nội dung tiếng Việt...",
+      "category": "Số học",
+      "difficulty": "Olympic / Học sinh giỏi",
+      "finalAnswer": "8",
+      "solutionSteps": [
+        "Bước 1: ...",
+        "Bước 2: ..."
+      ],
+      "tips": "Mẹo giải nhanh...",
+      "coreFormulas": ["Công thức..."],
+      "alternateMethod": "Cách 2 nếu có..."
     }
-  ],
-  "olympiadTips": [
-    "Mẹo tư duy nhanh 1...",
-    "Bẫy thường gặp cần tránh..."
-  ],
-  "coreFormulas": [
-    "Công thức 1",
-    "Công thức 2"
-  ],
-  "alternateMethod": "Cách 2 giải nhanh theo phương pháp trắc nghiệm..."
+  ]
 }`;
 
-  const parts: any[] = [{ text: systemInstruction }];
+  const parts: any[] = [{ text: systemPrompt }];
 
   if (input.textPrompt && input.textPrompt.trim()) {
     parts.push({
@@ -129,25 +176,34 @@ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON THEO ĐỊNH DẠNG SAU:
   }
 
   let resultData: any = null;
+  let lastError: any = null;
 
   for (const model of FAST_MODELS) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout to avoid premature cancel
 
     try {
-      if (onProgress) onProgress(75, `Đang kết nối Gemini AI (${model}) để sinh lời giải...`);
+      if (onProgress) onProgress(75, `Đang kết nối Gemini AI (${model}) để phân tích đề bài...`);
+
+      const requestBody: any = {
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        }
+      };
+
+      // Disable extended thinking budget so gemini-3-flash-preview returns immediately in 7-10s
+      if (model.includes('gemini-3')) {
+        requestBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.2
-            }
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal
         }
       );
@@ -156,74 +212,75 @@ TRẢ VỀ DUY NHẤT MỘT ĐỐI TƯỢNG JSON THEO ĐỊNH DẠNG SAU:
       if (response.ok) {
         resultData = await response.json();
         break;
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        console.warn(`Model ${model} returned status ${response.status}:`, errJson);
+        lastError = errJson?.error?.message || `Lỗi HTTP ${response.status}`;
       }
-    } catch (err) {
+    } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn(`Solver model ${model} failed:`, err);
+      console.warn(`Solver model ${model} request failed:`, err);
+      lastError = err?.message || 'Kết nối mạng bị gián đoạn';
     }
   }
 
-  if (onProgress) onProgress(95, 'Đang hoàn tất định dạng lời giải chuẩn sư phạm...');
+  if (onProgress) onProgress(95, 'Đang hoàn tất định dạng lời giải và lưu phiên...');
 
   const rawText = resultData?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (rawText) {
     try {
       const cleanJson = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-      const parsed: SolvedMathResult = JSON.parse(cleanJson);
-      if (onProgress) onProgress(100, 'Đã giải xong bài toán!');
-      return parsed;
-    } catch (parseErr) {
+      const parsed = JSON.parse(cleanJson);
+
+      const questionsList: SolvedQuestionItem[] = Array.isArray(parsed.questions) && parsed.questions.length > 0
+        ? parsed.questions.map((q: any, idx: number) => ({
+            questionNumber: q.questionNumber || idx + 1,
+            title: q.title || `Câu ${q.questionNumber || idx + 1}`,
+            textEn: q.textEn || '',
+            textVi: q.textVi || q.question || '',
+            category: q.category || 'Toán học',
+            difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
+            finalAnswer: q.finalAnswer || '',
+            solutionSteps: Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''],
+            tips: q.tips || '',
+            coreFormulas: q.coreFormulas || [],
+            alternateMethod: q.alternateMethod || undefined
+          }))
+        : [];
+
+      if (questionsList.length === 0) {
+        throw new Error('AI không nhận diện được câu hỏi nào từ ảnh. Vui lòng chụp rõ nét hơn!');
+      }
+
+      const session: SolverSession = {
+        id: `solver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        createdAt: new Date().toLocaleString('vi-VN'),
+        timestamp: Date.now(),
+        examTitle: parsed.examTitle || `Bài toán nhận diện từ ảnh (${questionsList.length} câu)`,
+        gradeLevel: parsed.gradeLevel || grade,
+        totalQuestions: questionsList.length,
+        imageThumbnail,
+        rawOcrText: parsed.rawOcrText || questionsList.map(q => `Câu ${q.questionNumber}:\n${q.textEn}\n${q.textVi}`).join('\n\n'),
+        questions: questionsList
+      };
+
+      // Save session to local storage history
+      saveSolverSession(session);
+
+      if (onProgress) onProgress(100, `Đã nhận diện và giải thành công ${questionsList.length} câu hỏi!`);
+      return session;
+    } catch (parseErr: any) {
       console.error('Failed to parse solver JSON:', parseErr);
+      throw new Error(`Không thể phân tích dữ liệu trả về từ AI: ${parseErr.message}`);
     }
   }
 
-  // Fallback demo solution if offline or API error
-  if (onProgress) onProgress(100, 'Hoàn thành!');
-  return {
-    title: 'Bài Toán Luyện Tập Mẫu',
-    problemTextVi: input.textPrompt || 'Một mảnh đất hình chữ nhật có chu vi 120m. Chiều dài hơn chiều rộng 16m. Tính diện tích mảnh đất đó theo đơn vị mét vuông.',
-    problemTextEn: 'A rectangular plot of land has a perimeter of 120m. The length is 16m longer than the width. Find the area of the plot in square meters.',
-    category: 'Hình học & Số học',
-    gradeLevel: options.gradeLevel || 'Lớp 3 - Lớp 5 (Tiểu học)',
-    difficulty: 'Nâng cao',
-    finalAnswer: '836 m²',
-    solutionSteps: [
-      {
-        stepNumber: 1,
-        stepTitle: 'Tìm nửa chu vi (Tổng chiều dài và chiều rộng)',
-        content: 'Nửa chu vi của mảnh đất hình chữ nhật là:\n120 : 2 = 60 (m)',
-        subNotes: 'Nửa chu vi chính là tổng của chiều dài và chiều rộng.'
-      },
-      {
-        stepNumber: 2,
-        stepTitle: 'Áp dụng bài toán tìm hai số khi biết Tổng và Hiệu',
-        content: 'Chiều dài mảnh đất là: (60 + 16) : 2 = 38 (m)\nChiều rộng mảnh đất là: 60 - 38 = 22 (m)',
-        subNotes: 'Công thức: Số lớn = (Tổng + Hiệu) : 2; Số bé = (Tổng - Hiệu) : 2'
-      },
-      {
-        stepNumber: 3,
-        stepTitle: 'Tính diện tích mảnh đất hình chữ nhật',
-        content: 'Diện tích của mảnh đất là:\n38 × 22 = 836 (m²)',
-        subNotes: 'Đáp số: 836 m²'
-      }
-    ],
-    olympiadTips: [
-      'Ghi nhớ quy tắc "Tổng - Hiệu": Luôn vẽ sơ đồ đoạn thẳng để không bị nhầm dấu cộng và trừ.',
-      'Mẹo tính nhanh 38 × 22 = (30 + 8) × 22 = 660 + 176 = 836.'
-    ],
-    coreFormulas: [
-      'Nửa chu vi = Chu vi : 2 = Dài + Rộng',
-      'Số lớn = (Tổng + Hiệu) : 2',
-      'Số bé = (Tổng - Hiệu) : 2',
-      'Diện tích hình chữ nhật = Dài × Rộng'
-    ],
-    alternateMethod: 'Cách giải đại số: Gọi chiều rộng là x (m), chiều dài là x + 16 (m). Ta có phương trình: 2 × (x + x + 16) = 120 => 4x + 32 = 120 => 4x = 88 => x = 22. Chiều dài là 38m. Diện tích là 22 × 38 = 836 m².'
-  };
+  throw new Error(`Không thể giải bài toán bằng AI: ${lastError || 'Lỗi không xác định. Vui lòng kiểm tra lại kết nối mạng hoặc API Key.'}`);
 }
 
 export async function askFollowUpQuestionToAI(
   question: string,
-  solvedProblem: SolvedMathResult,
+  solvedQuestion: SolvedQuestionItem,
   chatHistory: SolverChatMessage[],
   apiKey?: string
 ): Promise<string> {
@@ -231,14 +288,16 @@ export async function askFollowUpQuestionToAI(
   const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envKey || '');
 
   const prompt = `Bạn là Gia sư Dạy Toán AI tận tâm và kiên nhẫn.
-Học sinh hoặc phụ huynh đang thắc mắc về bài toán sau:
+Học sinh hoặc phụ huynh đang thắc mắc về câu hỏi sau:
 ---
-ĐỀ BÀI: ${solvedProblem.problemTextVi}
-ĐÁP SỐ: ${solvedProblem.finalAnswer}
+CÂU HỎI: ${solvedQuestion.title}
+ĐỀ BÀI (Tiếng Anh): ${solvedQuestion.textEn}
+ĐỀ BÀI (Tiếng Việt): ${solvedQuestion.textVi}
+ĐÁP SỐ: ${solvedQuestion.finalAnswer}
 CÁC BƯỚC GIẢI HIỆN TẠI:
-${solvedProblem.solutionSteps.map(s => `Bước ${s.stepNumber} (${s.stepTitle}): ${s.content}`).join('\n')}
+${solvedQuestion.solutionSteps.join('\n')}
 ---
-LỊCH SỬ HỎI ĐÁP TRƯỚC ĐÓ:
+LỊCH SỬ HỎI ĐÁP:
 ${chatHistory.map(m => `${m.role === 'user' ? 'Học sinh' : 'Gia sư'}: ${m.content}`).join('\n')}
 
 CÂU HỎI MỚI CỦA HỌC SINH / PHỤ HUYNH:
@@ -271,5 +330,5 @@ Hãy trả lời thật ân cần, giải thích cặn kẽ từng chi tiết nh
     }
   }
 
-  return 'Em đã nắm rõ thắc mắc của bạn! Ở bước này, bạn chú ý kiểm tra lại phép tính và công thức đã áp dụng nhé.';
+  return 'Thầy/cô đã nắm được câu hỏi của con! Ở bước này, con chú ý kiểm tra lại điều kiện ràng buộc của đề bài nhé.';
 }
