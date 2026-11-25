@@ -101,6 +101,86 @@ Trả về DUY NHẤT một mảng JSON các câu hỏi trong cặp dấu \`\`\`
   return [];
 }
 
+/**
+ * Scan all pages at once with OpenAI ChatGPT (GPT-4o) for maximum accuracy and zero skipped questions.
+ */
+async function scanAllPagesWithChatGPT(
+  base64List: string[],
+  apiKey: string,
+  levelStr: string,
+  programStr: string,
+  studentName: string
+): Promise<any[]> {
+  const prompt = `Bạn là Chuyên gia Giáo viên Toán học hàng đầu Việt Nam, chuyên bồi dưỡng học sinh giỏi cấp ${levelStr} và các kỳ thi Toán Quốc tế (${programStr}).
+Nhiệm vụ: Hãy quét và chấm TOÀN BỘ tất cả các câu hỏi trong TẤT CẢ các trang ảnh đính kèm của học sinh ${studentName}.
+QUY TẮC CỰC KỲ QUAN TRỌNG:
+1. Quét kỹ từ trên xuống dưới qua từng trang theo thứ tự câu. TUYỆT ĐỐI KHÔNG ĐƯỢC BỎ SÓT BẤT KỲ CÂU NÀO TRONG TẤT CẢ CÁC TRANG ẢNH! (Ví dụ có từ Câu 1 đến Câu 28 hay nhiều hơn, phải quét đủ 100% tất cả các câu).
+2. Đối với mỗi câu hỏi tìm thấy:
+   - id: số thứ tự của câu (ví dụ 1, 2, ..., 13, ..., 28...)
+   - title: Tiêu đề (ví dụ 'Câu 1: Phép tính', 'Câu 14: Hình học'...)
+   - question: Nội dung đầy đủ đề bài bằng tiếng Anh và tiếng Việt song ngữ.
+   - studentAnswer: Trích xuất chính xác chữ/số viết tay của học sinh trên ảnh. Nếu học sinh chưa viết đáp án thì ghi '(Chưa làm)'.
+   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán.
+   - status: 'correct' nếu học sinh làm đúng; 'wrong' nếu học sinh làm sai; 'unanswered' nếu học sinh chưa làm; 'need_verify' nếu cần xác minh.
+   - statusText: 'Đúng', 'Sai / Cần sửa', 'Chưa làm', hoặc 'Cần xác minh'.
+   - category: Chủ đề toán học (Số học, Hình học, Tổ hợp, Logic, Đại số...).
+   - difficulty: 'Cơ bản' | 'Trung bình' | 'Nâng cao'.
+   - explanation: Lời giải thích ngắn gọn vì sao ra đáp án đó.
+   - solutionSteps: Mảng các bước giải chi tiết từng bước chuẩn sư phạm.
+   - studentMistake: Phân tích lỗi sai của học sinh nếu làm sai (hoặc null nếu đúng/chưa làm).
+   - tips: Mẹo giải nhanh hoặc lưu ý quan trọng.
+
+Trả về DUY NHẤT một mảng JSON các câu hỏi trong cặp dấu \`\`\`json [ ... ] \`\`\``;
+
+  try {
+    const userContent: any[] = [{ type: 'text', text: prompt }];
+    for (const b64 of base64List) {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' }
+      });
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.trim()}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: 'Bạn là Chuyên gia Khảo thí và Chấm thi Toán học AI. Luôn trả về kết quả dạng JSON hợp lệ trong cặp ```json ... ```.' },
+          { role: 'user', content: userContent }
+        ],
+        temperature: 0.1
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawText = data?.choices?.[0]?.message?.content;
+      if (rawText) {
+        const match = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, rawText];
+        const clean = match[1].trim();
+        const parsed = JSON.parse(clean);
+        const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+        if (questions.length > 0) {
+          return questions;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('ChatGPT grading call error, falling back:', e);
+  }
+  return [];
+}
+
 export async function gradeImagesWithAI(
   imageFiles: File[],
   apiKey?: string,
@@ -155,13 +235,42 @@ export async function gradeImagesWithAI(
     quality: 0.82
   });
 
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envKey || '');
+  const aiEngine = (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
+  const openAiKey = (localStorage.getItem('OPENAI_API_KEY') || '').trim();
+  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const effectiveGeminiKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envGeminiKey || '');
 
-  if (effectiveKey && effectiveKey.length > 10 && base64List.length > 0) {
+  let rawExtractedQuestions: any[] = [];
+  let usedEngine: 'chatgpt' | 'gemini' = 'gemini';
+
+  // Attempt 1: Try OpenAI ChatGPT (GPT-4o) if selected or if OpenAI key is present
+  if (aiEngine === 'chatgpt' && openAiKey && openAiKey.length > 15 && base64List.length > 0) {
+    if (onProgress) {
+      onProgress({
+        status: 'ocr_scanning',
+        progress: 45,
+        message: `ChatGPT (GPT-4o) đang phân tích & chấm đồng thời toàn bộ ${base64List.length} trang ảnh bài tập...`
+      });
+    }
+
+    const gptQuestions = await scanAllPagesWithChatGPT(
+      base64List,
+      openAiKey,
+      levelStr,
+      programStr,
+      studentName
+    );
+
+    if (gptQuestions && gptQuestions.length > 0) {
+      rawExtractedQuestions = gptQuestions;
+      usedEngine = 'chatgpt';
+    }
+  }
+
+  // Attempt 2: Use Gemini Vision AI (page by page) if not completed by ChatGPT
+  if (rawExtractedQuestions.length === 0 && effectiveGeminiKey && effectiveGeminiKey.length > 10 && base64List.length > 0) {
     try {
-      const rawExtractedQuestions: any[] = [];
-
+      usedEngine = 'gemini';
       // Scan page by page sequentially to guarantee every single question is recognized
       for (let pageIdx = 0; pageIdx < base64List.length; pageIdx++) {
         const pageNum = pageIdx + 1;
@@ -179,7 +288,7 @@ export async function gradeImagesWithAI(
           base64List[pageIdx],
           pageNum,
           base64List.length,
-          effectiveKey,
+          effectiveGeminiKey,
           levelStr,
           programStr,
           studentName
@@ -194,15 +303,19 @@ export async function gradeImagesWithAI(
           await new Promise(r => setTimeout(r, 600));
         }
       }
+    } catch (err: any) {
+      console.warn('Gemini Multi-page Vision call failed:', err);
+    }
+  }
 
-      if (rawExtractedQuestions.length > 0) {
-        if (onProgress) {
-          onProgress({
-            status: 'generating_report',
-            progress: 92,
-            message: `Đang tổng hợp điểm số và lập báo cáo chi tiết cho ${rawExtractedQuestions.length} câu hỏi...`
-          });
-        }
+  if (rawExtractedQuestions.length > 0) {
+    if (onProgress) {
+      onProgress({
+        status: 'generating_report',
+        progress: 92,
+        message: `Đang tổng hợp điểm số và lập báo cáo chi tiết cho ${rawExtractedQuestions.length} câu hỏi...`
+      });
+    }
 
         // Deduplicate by question id and sort
         const idMap = new Map<number, any>();
@@ -245,7 +358,7 @@ export async function gradeImagesWithAI(
 
         const summary: TestSummary = {
           title: `BẢNG KẾT QUẢ CHẤM ĐIỂM – ${studentName.toUpperCase()}`,
-          subtitle: `Nhận diện bằng Gemini Vision AI từ ${imageFiles.length} trang ảnh bài tập (${qList.length} câu đầy đủ).`,
+          subtitle: `Nhận diện bằng ${usedEngine === 'chatgpt' ? 'ChatGPT (GPT-4o)' : 'Gemini Vision AI'} từ ${imageFiles.length} trang ảnh bài tập (${qList.length} câu đầy đủ).`,
           studentName: studentName,
           grade: `${levelStr} • ${programStr}`,
           testDate: new Date().toLocaleDateString('vi-VN'),
@@ -269,10 +382,6 @@ export async function gradeImagesWithAI(
 
         return { questions: qList, summary };
       }
-    } catch (err: any) {
-      console.warn('Gemini Multi-page Vision call failed:', err);
-    }
-  }
 
   // Graceful fallback if offline or no key
   if (onProgress) {

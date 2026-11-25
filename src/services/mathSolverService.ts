@@ -1,10 +1,12 @@
-import { compressImage } from './imageCompression';
+import { compressMultipleImages } from './imageCompression';
 
 export interface SolverOptions {
-  apiKey?: string;
+  apiKey?: string;        // Gemini API key
+  openAiKey?: string;     // OpenAI ChatGPT API key
+  aiEngine?: 'chatgpt' | 'gemini'; // Selected AI engine
   studentName?: string;
-  gradeLevel?: string; // e.g. 'Lớp 1 (Tony)', 'Lớp 3 (Ruby)', 'Lớp 6 (Lisa)', 'Lớp 10 (Chip)', 'Tự động'
-  program?: string;    // e.g. 'Olympic ASMO / ITMC', 'SGK Cánh Diều / Kết Nối Tri Thức', 'Nâng cao'
+  gradeLevel?: string;
+  program?: string;
   userNote?: string;
 }
 
@@ -30,7 +32,9 @@ export interface SolverSession {
   gradeLevel: string;
   totalQuestions: number;
   imageThumbnail?: string;
+  sourceImagesCount?: number;
   rawOcrText: string;
+  aiEngine?: 'chatgpt' | 'gemini';
   questions: SolvedQuestionItem[];
 }
 
@@ -79,213 +83,347 @@ export function getSolverSessionById(id: string): SolverSession | null {
   return sessions.find(s => s.id === id) || null;
 }
 
-const FAST_MODELS = ['gemini-3-flash-preview', 'gemini-3.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
 
+/**
+ * Step 1: Extract and convert all uploaded images into clean, editable text problems (OCR).
+ */
+export async function extractTextFromImagesWithAI(
+  imageFiles: File[],
+  options: SolverOptions = {},
+  onProgress?: (progress: number, message: string) => void
+): Promise<string> {
+  if (imageFiles.length === 0) return '';
+
+  if (onProgress) onProgress(20, `Đang tối ưu & nén ${imageFiles.length} trang ảnh để nhận diện OCR...`);
+  const { base64List } = await compressMultipleImages(imageFiles, {
+    maxWidth: 1400,
+    maxHeight: 1400,
+    quality: 0.82
+  });
+
+  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
+  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
+  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || envGeminiKey || '';
+
+  const ocrSystemPrompt = `Bạn là Chuyên gia Nhận diện Chữ viết & Đề thi Toán học hàng đầu.
+Nhiệm vụ: Hãy quét và trích xuất TOÀN BỘ nội dung đề bài trong tất cả các trang ảnh được cung cấp thành văn bản thuần (Text).
+QUY TẮC BẮT BUỘC:
+1. Nhận diện ĐẦY ĐỦ TỪNG CÂU HỎI (Câu 1, Câu 2, Câu 3...), không bỏ sót bất kỳ câu nào.
+2. Trích xuất cả đề bài tiếng Anh và phần dịch/chú thích tiếng Việt nếu có.
+3. Nếu có bài làm chữ viết tay của học sinh, hãy ghi chú: "Bài làm của học sinh: [nội dung viết tay]".
+4. KHÔNG giải bài trong bước này, CHỈ trích xuất nội dung đề bài chính xác 100% để người dùng rà soát, chỉnh sửa trước khi giải.
+5. Trình bày mạch lạc, phân tách rõ ràng giữa các câu bằng dấu gạch ngang (---).`;
+
+  // 1. Try OpenAI ChatGPT if selected and key available
+  if (engine === 'chatgpt' && openAiKey && openAiKey.trim().length > 15) {
+    if (onProgress) onProgress(50, `Đang kết nối ChatGPT (GPT-4o) để trích xuất đề bài từ ${base64List.length} trang ảnh...`);
+    try {
+      const userContent: any[] = [{ type: 'text', text: 'Hãy nhận diện toàn bộ đề bài toán trong các ảnh đính kèm thành văn bản thuần:' }];
+      for (const b64 of base64List) {
+        userContent.push({
+          type: 'image_url',
+          image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' }
+        });
+      }
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openAiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: ocrSystemPrompt },
+            { role: 'user', content: userContent }
+          ],
+          temperature: 0.1
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const extractedText = data?.choices?.[0]?.message?.content;
+        if (extractedText && extractedText.trim().length > 10) {
+          if (onProgress) onProgress(100, `ChatGPT đã trích xuất thành công toàn bộ đề bài ra Text!`);
+          return extractedText.trim();
+        }
+      }
+    } catch (openAiErr) {
+      console.warn('OpenAI OCR request failed, trying fallback to Gemini:', openAiErr);
+    }
+  }
+
+  // 2. Gemini Vision OCR
+  if (geminiKey && geminiKey.trim().length > 10) {
+    if (onProgress) onProgress(60, `Gemini Vision AI đang chuyển toàn bộ ${base64List.length} trang ảnh ra Text...`);
+    const parts: any[] = [{ text: ocrSystemPrompt }];
+    for (const b64 of base64List) {
+      parts.push({
+        inlineData: { mimeType: 'image/jpeg', data: b64 }
+      });
+    }
+
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey.trim()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts }],
+            generationConfig: { temperature: 0.1 }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText && rawText.trim().length > 10) {
+            if (onProgress) onProgress(100, `Đã chuyển toàn bộ đề bài từ ${imageFiles.length} trang ảnh ra Text thành công!`);
+            return rawText.trim();
+          }
+        }
+      } catch (err) {
+        console.warn(`Gemini OCR model ${model} failed:`, err);
+      }
+    }
+  }
+
+  return 'Chưa thể trích xuất văn bản từ ảnh do thiếu API Key hoặc lỗi mạng. Sếp có thể tự gõ hoặc dán nội dung đề bài vào đây.';
+}
+
+/**
+ * Step 2: Solve math problem with AI (supports multiple images and/or text prompt, OpenAI or Gemini).
+ */
 export async function solveMathProblemWithAI(
-  input: { imageFile?: File; textPrompt?: string },
+  input: { imageFiles?: File[]; textPrompt?: string },
   options: SolverOptions = {},
   onProgress?: (progress: number, message: string) => void
 ): Promise<SolverSession> {
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const effectiveKey = (options.apiKey && options.apiKey.trim().length > 10) ? options.apiKey.trim() : (envKey || '');
-
   const grade = options.gradeLevel || 'Lớp 3 (Ruby Đoàn Minh Châu)';
   const program = options.program || 'Toán học Việt Nam & Kỳ thi Olympic Quốc Tế (ASMO, ITMC, GMATH, Kangaroo)';
 
-  if (!effectiveKey) {
-    throw new Error('Chưa cấu hình API Key Gemini. Vui lòng bấm Cài đặt ở góc trên để nhập API Key.');
-  }
+  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
+  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
+  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || envGeminiKey || '';
 
-  if (onProgress) onProgress(15, 'Đang chuẩn bị đề bài toán...');
+  if (onProgress) onProgress(15, 'Đang chuẩn bị dữ liệu đề bài...');
 
-  let imageBase64: string | undefined;
+  let base64List: string[] = [];
   let imageThumbnail: string | undefined;
 
-  if (input.imageFile) {
-    if (onProgress) onProgress(30, 'Đang tối ưu & nén ảnh để nhận diện OCR tốc độ cao...');
-    const compressed = await compressImage(input.imageFile, {
-      maxWidth: 1600,
-      maxHeight: 1600,
-      quality: 0.85
+  if (input.imageFiles && input.imageFiles.length > 0) {
+    if (onProgress) onProgress(30, `Đang tối ưu & nén ${input.imageFiles.length} trang ảnh đề thi...`);
+    const compressed = await compressMultipleImages(input.imageFiles, {
+      maxWidth: 1400,
+      maxHeight: 1400,
+      quality: 0.82
     });
-    imageBase64 = compressed.base64;
-    imageThumbnail = `data:image/jpeg;base64,${compressed.base64.substring(0, 5000)}`; // brief preview
+    base64List = compressed.base64List;
+    if (base64List.length > 0) {
+      imageThumbnail = `data:image/jpeg;base64,${base64List[0].substring(0, 5000)}`;
+    }
   }
 
-  if (onProgress) onProgress(50, 'Gemini AI đang OCR chuyển toàn bộ đề bài ra Text và tính toán lời giải...');
-
-  const systemPrompt = `Bạn là Chuyên gia Bồi dưỡng Học sinh Giỏi Toán học hàng đầu Việt Nam và Huấn luyện viên các kỳ thi Olympic Toán quốc tế (ASMO, ITMC, SASMO, Kangaroo, GMATH).
-Nhiệm vụ: Phân tích ảnh chụp đề thi hoặc văn bản được cung cấp cho học sinh cấp độ: ${grade}.
+  const solverSystemPrompt = `Bạn là Chuyên gia Bồi dưỡng Học sinh Giỏi Toán học hàng đầu Việt Nam và Huấn luyện viên các kỳ thi Olympic Toán quốc tế (ASMO, ITMC, SASMO, Kangaroo, GMATH).
+Nhiệm vụ: Phân tích toàn bộ đề bài (từ văn bản hoặc các trang ảnh đính kèm) cho học sinh cấp độ: ${grade}.
 Chương trình mục tiêu: ${program}.
 
 QUY TẮC BẮT BUỘC:
-1. NHẬN DIỆN VÀ CHUYỂN TOÀN BỘ ẢNH THÀNH TEXT (OCR):
-   - Nhận diện đầy đủ toàn bộ chữ tiếng Anh và chú thích tiếng Việt trong ảnh không bỏ sót bất kỳ câu nào.
-   - Tập hợp toàn bộ nội dung đề bài thuần vào trường "rawOcrText" để người dùng có thể đọc, sao chép hoặc in ấn.
-2. PHÂN LOẠI VÀ GIẢI TỪNG CÂU HỎI TRONG ĐỀ:
-   - Nếu ảnh có nhiều câu hỏi (ví dụ Câu 23, 24, 25, 26...), hãy trích xuất và giải ĐẦY ĐỦ TẤT CẢ các câu hỏi có trong ảnh.
-   - Với mỗi câu hỏi:
-     + Trích xuất đề bài gốc (tiếng Anh) vào "textEn" (nếu có).
-     + Bản dịch chuẩn mực tiếng Việt vào "textVi".
-     + Phân loại dạng toán (Số học / Hình học / Đếm / Logic / Tổ hợp / Lập số / Tiền tệ...).
-     + "finalAnswer": Đáp số cuối cùng ngắn gọn, rõ ràng (ví dụ: "8 đồ chơi", "14 cách", "38 thẻ", "120 số").
-     + "solutionSteps": Các bước giải chi tiết từng bước chuẩn sư phạm Việt Nam phù hợp lứa tuổi học sinh (${grade}).
-     + "tips": Bí kíp / mẹo tư duy nhanh Olympic (Short-cut, bẫy trắc nghiệm cần tránh).
-     + "coreFormulas": Mảng các công thức hoặc quy tắc cốt lõi áp dụng trong bài.
+1. TRÍCH XUẤT VÀ GIẢI ĐẦY ĐỦ TẤT CẢ TỪNG CÂU HỎI TRONG ĐỀ:
+   - Tuyệt đối không được bỏ sót bất kỳ câu nào (ví dụ Câu 1, Câu 2... đến Câu 28...).
+   - Nếu đề bài được đưa vào dưới dạng văn bản (text), giải đầy đủ tất cả các câu trong văn bản đó.
+2. VỚI MỖI CÂU HỎI:
+   - "questionNumber": số thứ tự (ví dụ: 1, 2, ..., 28).
+   - "title": Tiêu đề câu hỏi ngắn gọn (ví dụ: 'Câu 1: Xếp hàng dọc', 'Câu 4: Bài toán tuổi'...).
+   - "textEn": Đề bài tiếng Anh đầy đủ (nếu có).
+   - "textVi": Đề bài tiếng Việt dịch chuẩn xác, sư phạm.
+   - "category": Phân loại dạng toán (Số học, Hình học, Tổ hợp, Logic, Lập số, Chu kỳ, Tiền tệ...).
+   - "difficulty": 'Cơ bản' | 'Nâng cao' | 'Olympic / Học sinh giỏi'.
+   - "finalAnswer": Đáp số cuối cùng ngắn gọn, rõ ràng (ví dụ: "28", "53", "Saturday (Thứ Bảy)", "18", "90 cm²").
+   - "solutionSteps": Mảng các bước giải chi tiết từng bước chuẩn mực sư phạm, dễ hiểu cho lứa tuổi học sinh (${grade}).
+   - "tips": Mẹo tư duy nhanh, bẫy trắc nghiệm cần tránh.
+   - "coreFormulas": Mảng các công thức hoặc quy tắc cốt lõi áp dụng trong bài.
+   - "alternateMethod": Cách giải 2 (nếu có).
 
 TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
 {
-  "examTitle": "Tiêu đề bài thi nhận diện được từ ảnh (ví dụ: Đề Luyện Thi Olympic Toán - Câu 23 đến 26)",
-  "rawOcrText": "Toàn bộ văn bản thô trích xuất từ ảnh...",
+  "examTitle": "Tiêu đề đề thi (ví dụ: Đề Luyện Thi Olympic Toán - 28 Câu)",
+  "rawOcrText": "Toàn bộ văn bản đề bài đã trích xuất...",
   "gradeLevel": "${grade}",
   "questions": [
     {
-      "questionNumber": 23,
-      "title": "Câu 23: Bài toán...",
-      "textEn": "English text...",
-      "textVi": "Nội dung tiếng Việt...",
-      "category": "Số học",
-      "difficulty": "Olympic / Học sinh giỏi",
-      "finalAnswer": "8",
+      "questionNumber": 1,
+      "title": "Câu 1: Xếp hàng dọc",
+      "textEn": "Ben and other students...",
+      "textVi": "Ben và các bạn học sinh...",
+      "category": "Số học & Xếp hàng",
+      "difficulty": "Cơ bản",
+      "finalAnswer": "28",
       "solutionSteps": [
         "Bước 1: ...",
         "Bước 2: ..."
       ],
       "tips": "Mẹo giải nhanh...",
-      "coreFormulas": ["Công thức..."],
-      "alternateMethod": "Cách 2 nếu có..."
+      "coreFormulas": ["Số người đứng trước = Thứ tự - 1"]
     }
   ]
 }`;
 
-  const parts: any[] = [{ text: systemPrompt }];
+  let parsed: any = null;
+  let activeEngineUsed: 'chatgpt' | 'gemini' = 'gemini';
 
-  if (input.textPrompt && input.textPrompt.trim()) {
-    parts.push({
-      text: `NỘI DUNG ĐỀ BÀI HOẶC YÊU CẦU CỦA NGƯỜI DÙNG:\n${input.textPrompt.trim()}`
-    });
-  }
-
-  if (imageBase64) {
-    parts.push({
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: imageBase64
-      }
-    });
-  }
-
-  let resultData: any = null;
-  let lastError: any = null;
-
-  for (const model of FAST_MODELS) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout to avoid premature cancel
-
+  // 1. Try ChatGPT (OpenAI GPT-4o) if selected or if OpenAI key is present
+  if ((engine === 'chatgpt' || !geminiKey) && openAiKey && openAiKey.trim().length > 15) {
+    if (onProgress) onProgress(60, 'Đang kết nối ChatGPT (GPT-4o) giải bài toán chuẩn sư phạm...');
     try {
-      if (onProgress) onProgress(75, `Đang kết nối Gemini AI (${model}) để phân tích đề bài...`);
-
-      const requestBody: any = {
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1
-        }
-      };
-
-      // Disable extended thinking budget so gemini-3-flash-preview returns immediately in 7-10s
-      if (model.includes('gemini-3')) {
-        requestBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      const userContent: any[] = [];
+      if (input.textPrompt && input.textPrompt.trim()) {
+        userContent.push({
+          type: 'text',
+          text: `NỘI DUNG ĐỀ BÀI CẦN GIẢI:\n${input.textPrompt.trim()}`
+        });
+      } else {
+        userContent.push({
+          type: 'text',
+          text: `Hãy nhận diện và giải toàn bộ các câu hỏi toán trong ${base64List.length} trang ảnh đính kèm theo định dạng JSON yêu cầu:`
+        });
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
-        {
+      for (const b64 of base64List) {
+        userContent.push({
+          type: 'image_url',
+          image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' }
+        });
+      }
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openAiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: solverSystemPrompt },
+            { role: 'user', content: userContent }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (content) {
+          parsed = JSON.parse(content);
+          activeEngineUsed = 'chatgpt';
+        }
+      }
+    } catch (gptErr) {
+      console.warn('ChatGPT solve request failed, falling back to Gemini:', gptErr);
+    }
+  }
+
+  // 2. Gemini fallback
+  if (!parsed && geminiKey && geminiKey.trim().length > 10) {
+    if (onProgress) onProgress(70, 'Đang phân tích và giải đề toán bằng Gemini AI...');
+    const parts: any[] = [{ text: solverSystemPrompt }];
+
+    if (input.textPrompt && input.textPrompt.trim()) {
+      parts.push({
+        text: `NỘI DUNG ĐỀ BÀI HOẶC YÊU CẦU CỦA NGƯỜI DÙNG:\n${input.textPrompt.trim()}`
+      });
+    }
+
+    for (const b64 of base64List) {
+      parts.push({
+        inlineData: { mimeType: 'image/jpeg', data: b64 }
+      });
+    }
+
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey.trim()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
+          body: JSON.stringify({
+            contents: [{ parts }],
+            generationConfig: { temperature: 0.1 }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const match = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, rawText];
+            parsed = JSON.parse(match[1].trim());
+            activeEngineUsed = 'gemini';
+            break;
+          }
         }
-      );
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        resultData = await response.json();
-        break;
-      } else {
-        const errJson = await response.json().catch(() => ({}));
-        console.warn(`Model ${model} returned status ${response.status}:`, errJson);
-        lastError = errJson?.error?.message || `Lỗi HTTP ${response.status}`;
+      } catch (gemErr) {
+        console.warn(`Gemini solver model ${model} failed:`, gemErr);
       }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      console.warn(`Solver model ${model} request failed:`, err);
-      lastError = err?.message || 'Kết nối mạng bị gián đoạn';
     }
   }
 
-  if (onProgress) onProgress(95, 'Đang hoàn tất định dạng lời giải và lưu phiên...');
+  if (parsed && parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+    const questionsList: SolvedQuestionItem[] = parsed.questions.map((q: any, idx: number) => ({
+      questionNumber: q.questionNumber || idx + 1,
+      title: q.title || `Câu ${q.questionNumber || idx + 1}`,
+      textEn: q.textEn || '',
+      textVi: q.textVi || q.question || '',
+      category: q.category || 'Toán học',
+      difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
+      finalAnswer: q.finalAnswer || '',
+      solutionSteps: Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''],
+      tips: q.tips || '',
+      coreFormulas: q.coreFormulas || [],
+      alternateMethod: q.alternateMethod || undefined
+    }));
 
-  const rawText = resultData?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (rawText) {
-    try {
-      const cleanJson = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-      const parsed = JSON.parse(cleanJson);
+    const session: SolverSession = {
+      id: `solver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      createdAt: new Date().toLocaleString('vi-VN'),
+      timestamp: Date.now(),
+      examTitle: parsed.examTitle || `Bài toán nhận diện từ ${input.imageFiles?.length || 0} trang ảnh (${questionsList.length} câu)`,
+      gradeLevel: parsed.gradeLevel || grade,
+      totalQuestions: questionsList.length,
+      imageThumbnail,
+      sourceImagesCount: input.imageFiles?.length || (input.textPrompt ? 1 : 0),
+      rawOcrText: parsed.rawOcrText || input.textPrompt || questionsList.map(q => `Câu ${q.questionNumber}:\n${q.textEn ? q.textEn + '\n' : ''}${q.textVi}`).join('\n\n'),
+      aiEngine: activeEngineUsed,
+      questions: questionsList
+    };
 
-      const questionsList: SolvedQuestionItem[] = Array.isArray(parsed.questions) && parsed.questions.length > 0
-        ? parsed.questions.map((q: any, idx: number) => ({
-            questionNumber: q.questionNumber || idx + 1,
-            title: q.title || `Câu ${q.questionNumber || idx + 1}`,
-            textEn: q.textEn || '',
-            textVi: q.textVi || q.question || '',
-            category: q.category || 'Toán học',
-            difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
-            finalAnswer: q.finalAnswer || '',
-            solutionSteps: Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''],
-            tips: q.tips || '',
-            coreFormulas: q.coreFormulas || [],
-            alternateMethod: q.alternateMethod || undefined
-          }))
-        : [];
-
-      if (questionsList.length === 0) {
-        throw new Error('AI không nhận diện được câu hỏi nào từ ảnh. Vui lòng chụp rõ nét hơn!');
-      }
-
-      const session: SolverSession = {
-        id: `solver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        createdAt: new Date().toLocaleString('vi-VN'),
-        timestamp: Date.now(),
-        examTitle: parsed.examTitle || `Bài toán nhận diện từ ảnh (${questionsList.length} câu)`,
-        gradeLevel: parsed.gradeLevel || grade,
-        totalQuestions: questionsList.length,
-        imageThumbnail,
-        rawOcrText: parsed.rawOcrText || questionsList.map(q => `Câu ${q.questionNumber}:\n${q.textEn}\n${q.textVi}`).join('\n\n'),
-        questions: questionsList
-      };
-
-      // Save session to local storage history
-      saveSolverSession(session);
-
-      if (onProgress) onProgress(100, `Đã nhận diện và giải thành công ${questionsList.length} câu hỏi!`);
-      return session;
-    } catch (parseErr: any) {
-      console.error('Failed to parse solver JSON:', parseErr);
-      throw new Error(`Không thể phân tích dữ liệu trả về từ AI: ${parseErr.message}`);
-    }
+    saveSolverSession(session);
+    if (onProgress) onProgress(100, `Đã hoàn tất giải thành công toàn bộ ${questionsList.length} câu hỏi!`);
+    return session;
   }
 
-  throw new Error(`Không thể giải bài toán bằng AI: ${lastError || 'Lỗi không xác định. Vui lòng kiểm tra lại kết nối mạng hoặc API Key.'}`);
+  throw new Error('Chưa thể giải bài toán. Vui lòng kiểm tra lại ảnh chụp hoặc nhập Khóa API ChatGPT / Gemini trong phần Cài đặt.');
 }
 
 export async function askFollowUpQuestionToAI(
   question: string,
   solvedQuestion: SolvedQuestionItem,
   chatHistory: SolverChatMessage[],
-  apiKey?: string
+  geminiKey?: string,
+  openAiKey?: string,
+  aiEngine?: string
 ): Promise<string> {
+  const engine = aiEngine || localStorage.getItem('AI_ENGINE') || 'chatgpt';
+  const opKey = openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envKey || '');
+  const gmKey = geminiKey || localStorage.getItem('GEMINI_API_KEY') || envKey || '';
 
   const prompt = `Bạn là Gia sư Dạy Toán AI tận tâm và kiên nhẫn.
 Học sinh hoặc phụ huynh đang thắc mắc về câu hỏi sau:
@@ -305,28 +443,55 @@ CÂU HỎI MỚI CỦA HỌC SINH / PHỤ HUYNH:
 
 Hãy trả lời thật ân cần, giải thích cặn kẽ từng chi tiết nhỏ mà học sinh chưa hiểu, dùng ví dụ minh họa hoặc phân tích thêm nếu cần thiết. Trả lời bằng tiếng Việt chuẩn mực, ngắn gọn, súc tích.`;
 
-  for (const model of FAST_MODELS) {
+  if (engine === 'chatgpt' && opKey && opKey.trim().length > 15) {
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.3
-            }
-          })
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${opKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: 'Bạn là Gia sư dạy toán Olympic tận tâm.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content;
         if (text) return text.trim();
       }
     } catch (e) {
-      console.warn(`Follow-up chat model ${model} error:`, e);
+      console.warn('ChatGPT chat error:', e);
+    }
+  }
+
+  if (gmKey && gmKey.trim().length > 10) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gmKey.trim()}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3 }
+            })
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text.trim();
+        }
+      } catch (e) {
+        console.warn(`Follow-up chat model ${model} error:`, e);
+      }
     }
   }
 
