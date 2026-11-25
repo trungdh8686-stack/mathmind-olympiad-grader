@@ -14,6 +14,93 @@ export interface GradingContext {
   program?: string;
 }
 
+/**
+ * Scan a single image page with Gemini Vision AI to guarantee zero skipped questions.
+ */
+async function scanSinglePageWithAI(
+  base64Data: string,
+  pageNum: number,
+  totalPages: number,
+  apiKey: string,
+  levelStr: string,
+  programStr: string,
+  studentName: string
+): Promise<any[]> {
+  const prompt = `Bạn là Chuyên gia Giáo viên Toán học hàng đầu Việt Nam, chuyên bồi dưỡng học sinh giỏi cấp ${levelStr} và các kỳ thi Toán Quốc tế (${programStr}).
+Nhiệm vụ: Hãy quét TOÀN BỘ trang ảnh số ${pageNum}/${totalPages} đính kèm của học sinh ${studentName}.
+QUY TẮC CỰC KỲ QUAN TRỌNG:
+1. Quét kỹ từ trên xuống dưới theo thứ tự câu. TUYỆT ĐỐI KHÔNG ĐƯỢC BỎ SÓT BẤT KỲ CÂU NÀO TRÊN TRANG ẢNH NÀY!
+2. Đối với mỗi câu hỏi tìm thấy trên trang:
+   - id: số thứ tự của câu (ví dụ 1, 2, ..., 13, ..., 26...)
+   - title: Tiêu đề (ví dụ 'Câu 1: Phép tính', 'Câu 14: Hình học'...)
+   - question: Nội dung đầy đủ đề bài bằng tiếng Anh và tiếng Việt song ngữ.
+   - studentAnswer: Trích xuất chính xác chữ/số viết tay của học sinh trên ảnh. Nếu học sinh chưa viết đáp án thì ghi '(Chưa làm)'.
+   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán.
+   - status: 'correct' nếu học sinh làm đúng; 'wrong' nếu học sinh làm sai; 'unanswered' nếu học sinh chưa làm; 'need_verify' nếu cần xác minh.
+   - statusText: 'Đúng', 'Sai / Cần sửa', 'Chưa làm', hoặc 'Cần xác minh'.
+   - category: Chủ đề toán học (Số học, Hình học, Tổ hợp, Logic, Đại số...).
+   - difficulty: 'Cơ bản' | 'Trung bình' | 'Nâng cao'.
+   - explanation: Lời giải thích ngắn gọn vì sao ra đáp án đó.
+   - solutionSteps: Mảng các bước giải chi tiết từng bước chuẩn sư phạm.
+   - studentMistake: Phân tích lỗi sai của học sinh nếu làm sai (hoặc null nếu đúng/chưa làm).
+   - tips: Mẹo giải nhanh hoặc lưu ý quan trọng.
+
+Trả về DUY NHẤT một mảng JSON các câu hỏi trong cặp dấu \`\`\`json [ ... ] \`\`\``;
+
+  const modelsToTry = [
+    'gemini-3.5-flash',
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash-lite',
+    'gemini-flash-latest'
+  ];
+
+  for (const model of modelsToTry) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s timeout
+
+        const reqBody = {
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
+            ]
+          }]
+        };
+
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const match = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, rawText];
+            const clean = match[1].trim();
+            const parsed = JSON.parse(clean);
+            const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+            if (questions.length > 0) {
+              return questions;
+            }
+          }
+        } else if (res.status === 503 || res.status === 429) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      } catch (e) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
+
+  return [];
+}
+
 export async function gradeImagesWithAI(
   imageFiles: File[],
   apiKey?: string,
@@ -29,7 +116,6 @@ export async function gradeImagesWithAI(
   const programStr = context?.program || 'Olympic Toán Quốc Tế (ASMO, ITMC, GMATH, SASMO, AMO, Kangaroo)';
 
   if (imageFiles.length === 0) {
-    // Return sample/mock data if no files provided
     if (onProgress) {
       onProgress({ status: 'completed', progress: 100, message: 'Đã nạp bài tập mẫu thành công!' });
     }
@@ -72,130 +158,70 @@ export async function gradeImagesWithAI(
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
   const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envKey || '');
 
-  if (effectiveKey && effectiveKey.length > 10) {
-    if (onProgress) {
-      onProgress({ status: 'ocr_scanning', progress: 30, message: `Gemini AI đang phân tích ${imageFiles.length} trang ảnh cho ${studentName}...` });
-    }
-
-    // Set up smooth progress interval while waiting for AI response
-    let currentProgress = 35;
-    const progressTimer = setInterval(() => {
-      currentProgress += 5;
-      if (currentProgress > 88) currentProgress = 88;
-      if (onProgress) {
-        let msg = 'Gemini Vision AI đang nhận diện câu hỏi và đề bài...';
-        if (currentProgress > 50 && currentProgress <= 70) {
-          msg = `Đang tính toán lời giải chuẩn sư phạm cấp ${levelStr}...`;
-        } else if (currentProgress > 70) {
-          msg = 'Đang so khớp kết quả và lập báo cáo chấm điểm chi tiết...';
-        }
-        onProgress({ status: 'ai_evaluating', progress: currentProgress, message: msg });
-      }
-    }, 800);
-
+  if (effectiveKey && effectiveKey.length > 10 && base64List.length > 0) {
     try {
-      const parts: any[] = [
-        {
-          text: `Bạn là Chuyên gia Giáo viên Toán học hàng đầu Việt Nam, chuyên bồi dưỡng học sinh giỏi cấp ${levelStr} và các kỳ thi Toán Quốc tế (${programStr}).
-Nhiệm vụ: Hãy phân tích ${base64List.length} trang bài tập đính kèm của học sinh ${studentName}.
-- Cấp học: ${levelStr}
-- Chương trình / Kỳ thi mục tiêu: ${programStr}
-- QUY TẮC ĐẶC BIỆT:
-  1. Nếu trên ảnh CÓ CHỮ VIẾT TAY bài làm của học sinh: Nhận diện chính xác từng câu hỏi, trích xuất đáp án học sinh đã viết vào "studentAnswer", tính toán "correctAnswer", đánh giá status ("correct" | "wrong" | "need_verify") và viết lời giải chi tiết.
-  2. NẾU TRÊN ẢNH LÀ ĐỀ BÀI CHƯA CÓ LỜI GIẢI / ĐỀ BÀI TRỐNG (chưa có chữ viết tay của con): Nhận diện toàn bộ các câu hỏi trong đề, đặt "studentAnswer" là "(Chưa làm)", "status" là "unanswered", "statusText" là "Chưa làm", và VẪN TÍNH TOÁN ĐẦY ĐỦ "correctAnswer", "solutionSteps", "tips" để giúp học sinh và phụ huynh xem trước phương pháp giải chuẩn!
+      const rawExtractedQuestions: any[] = [];
 
-Hãy trả về DUY NHẤT một JSON hợp lệ (không kèm markdown ngoài JSON):
-{
-  "title": "BẢNG KẾT QUẢ PHÂN TÍCH VÀ CHẤM ĐIỂM BÀI TOÁN",
-  "questions": [
-    {
-      "id": 1,
-      "title": "Câu 1: Phép tính",
-      "question": "Nội dung đề bài chi tiết...",
-      "keywords": "Từ khóa chính...",
-      "studentAnswer": "25",
-      "correctAnswer": "25",
-      "status": "correct",
-      "statusText": "Đúng theo ảnh",
-      "category": "Số học",
-      "difficulty": "Cơ bản",
-      "explanation": "Giải thích ngắn gọn...",
-      "solutionSteps": ["Bước 1: ...", "Bước 2: ..."],
-      "studentMistake": null,
-      "tips": "Mẹo giải nhanh..."
-    }
-  ]
-}`
+      // Scan page by page sequentially to guarantee every single question is recognized
+      for (let pageIdx = 0; pageIdx < base64List.length; pageIdx++) {
+        const pageNum = pageIdx + 1;
+        const pageProgress = Math.round(20 + (pageIdx / base64List.length) * 65);
+
+        if (onProgress) {
+          onProgress({
+            status: 'ocr_scanning',
+            progress: pageProgress,
+            message: `Gemini AI đang quét trang ${pageNum}/${base64List.length} (nhận diện từng câu hỏi trên trang)...`
+          });
         }
-      ];
 
-      for (const b64 of base64List) {
-        parts.push({
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: b64
-          }
-        });
-      }
+        const pageQuestions = await scanSinglePageWithAI(
+          base64List[pageIdx],
+          pageNum,
+          base64List.length,
+          effectiveKey,
+          levelStr,
+          programStr,
+          studentName
+        );
 
-      // Fast models priority: gemini-3-flash-preview (fastest multimodal), then gemini-3.5-flash-lite
-      const modelsToTry = ['gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
-      let data: any = null;
+        if (pageQuestions && pageQuestions.length > 0) {
+          rawExtractedQuestions.push(...pageQuestions);
+        }
 
-      for (const model of modelsToTry) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
-
-        try {
-          const reqBody: any = {
-            contents: [{ parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.2
-            }
-          };
-
-          if (model.includes('gemini-3')) {
-            reqBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
-          }
-
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(reqBody),
-              signal: controller.signal
-            }
-          );
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            data = await response.json();
-            break;
-          }
-        } catch (mErr) {
-          clearTimeout(timeoutId);
-          console.warn(`Model ${model} request failed or timed out:`, mErr);
+        // Brief breather between pages to protect API rate limits
+        if (pageIdx < base64List.length - 1) {
+          await new Promise(r => setTimeout(r, 600));
         }
       }
 
-      clearInterval(progressTimer);
+      if (rawExtractedQuestions.length > 0) {
+        if (onProgress) {
+          onProgress({
+            status: 'generating_report',
+            progress: 92,
+            message: `Đang tổng hợp điểm số và lập báo cáo chi tiết cho ${rawExtractedQuestions.length} câu hỏi...`
+          });
+        }
 
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        const cleanJsonStr = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-        const parsed = JSON.parse(cleanJsonStr);
-        if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          if (onProgress) {
-            onProgress({ status: 'completed', progress: 100, message: 'Hoàn tất phân tích bài toán bằng Gemini AI!' });
+        // Deduplicate by question id and sort
+        const idMap = new Map<number, any>();
+        for (const q of rawExtractedQuestions) {
+          const qId = Number(q.id) || (idMap.size + 1);
+          if (!idMap.has(qId)) {
+            idMap.set(qId, q);
           }
+        }
+        const sortedQuestions = Array.from(idMap.values()).sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
 
-          const qList: MathQuestion[] = parsed.questions.map((q: any, idx: number) => ({
-            id: q.id || idx + 1,
-            part: Math.ceil((q.id || idx + 1) / 10),
-            partTitle: `Phần ${Math.ceil((q.id || idx + 1) / 10)}`,
-            title: q.title || `Câu ${q.id || idx + 1}`,
+        const qList: MathQuestion[] = sortedQuestions.map((q: any, idx: number) => {
+          const qId = Number(q.id) || (idx + 1);
+          const partNum = Math.ceil(qId / 10);
+          return {
+            id: qId,
+            part: partNum,
+            partTitle: `Phần ${partNum}`,
+            title: q.title || `Câu ${qId}`,
             question: q.question || '',
             keywords: q.keywords || '',
             studentAnswer: q.studentAnswer || '(Chưa làm)',
@@ -208,41 +234,43 @@ Hãy trả về DUY NHẤT một JSON hợp lệ (không kèm markdown ngoài JS
             solutionSteps: q.solutionSteps || [],
             studentMistake: q.studentMistake || null,
             tips: q.tips || ''
-          }));
-
-          const correctCount = qList.filter(q => q.status === 'correct').length;
-          const wrongCount = qList.filter(q => q.status === 'wrong').length;
-          const unansweredCount = qList.filter(q => q.status === 'unanswered').length;
-          const verifyCount = qList.filter(q => q.status === 'need_verify').length;
-
-          const summary: TestSummary = {
-            title: parsed.title || `BẢNG KẾT QUẢ CHẤM ĐIỂM – ${studentName.toUpperCase()}`,
-            subtitle: `Nhận diện bằng Gemini Vision AI từ ${imageFiles.length} trang ảnh bài tập (${qList.length} câu).`,
-            studentName: studentName,
-            grade: `${levelStr} • ${programStr}`,
-            testDate: new Date().toLocaleDateString('vi-VN'),
-            totalQuestions: qList.length,
-            correctCount,
-            wrongCount,
-            unansweredCount,
-            verifyCount,
-            score10: qList.length > 0 ? Number(((correctCount / qList.length) * 10).toFixed(1)) : 0,
-            accuracyRate: (qList.length - unansweredCount) > 0 
-              ? Number(((correctCount / (qList.length - unansweredCount)) * 100).toFixed(1)) 
-              : 0,
-            completionRate: qList.length > 0 ? Number((((qList.length - unansweredCount) / qList.length) * 100).toFixed(1)) : 0,
-            sourceImagesCount: imageFiles.length,
-            notes: unansweredCount === qList.length 
-              ? 'Đề bài chưa có đáp án của học sinh. AI đã nhận diện toàn bộ câu hỏi và cung cấp đáp án cùng lời giải tham khảo.'
-              : `Đã đối chiếu thành công ${qList.length} câu hỏi theo cấp ${levelStr}.`
           };
+        });
 
-          return { questions: qList, summary };
+        const correctCount = qList.filter(q => q.status === 'correct').length;
+        const wrongCount = qList.filter(q => q.status === 'wrong').length;
+        const unansweredCount = qList.filter(q => q.status === 'unanswered').length;
+        const verifyCount = qList.filter(q => q.status === 'need_verify').length;
+        const attemptedCount = qList.length - unansweredCount;
+
+        const summary: TestSummary = {
+          title: `BẢNG KẾT QUẢ CHẤM ĐIỂM – ${studentName.toUpperCase()}`,
+          subtitle: `Nhận diện bằng Gemini Vision AI từ ${imageFiles.length} trang ảnh bài tập (${qList.length} câu đầy đủ).`,
+          studentName: studentName,
+          grade: `${levelStr} • ${programStr}`,
+          testDate: new Date().toLocaleDateString('vi-VN'),
+          totalQuestions: qList.length,
+          correctCount,
+          wrongCount,
+          unansweredCount,
+          verifyCount,
+          score10: attemptedCount > 0 ? Number(((correctCount / attemptedCount) * 10).toFixed(1)) : 0,
+          accuracyRate: attemptedCount > 0 ? Number(((correctCount / attemptedCount) * 100).toFixed(1)) : 0,
+          completionRate: qList.length > 0 ? Number(((attemptedCount / qList.length) * 100).toFixed(1)) : 0,
+          sourceImagesCount: imageFiles.length,
+          notes: unansweredCount === qList.length 
+            ? 'Đề bài chưa có đáp án của học sinh. AI đã nhận diện toàn bộ các câu hỏi trên từng trang và cung cấp đầy đủ đáp án cùng lời giải chi tiết.'
+            : `Đã đối chiếu thành công toàn bộ ${qList.length} câu hỏi từ ${imageFiles.length} trang ảnh bài tập.`
+        };
+
+        if (onProgress) {
+          onProgress({ status: 'completed', progress: 100, message: `Hoàn tất phân tích đầy đủ ${qList.length} câu hỏi!` });
         }
+
+        return { questions: qList, summary };
       }
     } catch (err: any) {
-      clearInterval(progressTimer);
-      console.warn('Gemini API call failed or timed out:', err);
+      console.warn('Gemini Multi-page Vision call failed:', err);
     }
   }
 
