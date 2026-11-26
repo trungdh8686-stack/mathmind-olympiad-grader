@@ -1,6 +1,7 @@
 import { MathQuestion, TestSummary, INITIAL_QUESTIONS } from '../data/mockData';
 import { compressMultipleImages } from './imageCompression';
 import { reconcileAnswerWithSolutionSteps } from './mathSolverService';
+import { systemConfigService } from './systemConfigService';
 
 export interface GradingProgress {
   status: 'idle' | 'uploading' | 'ocr_scanning' | 'ai_evaluating' | 'generating_report' | 'completed' | 'error';
@@ -239,11 +240,12 @@ export async function gradeImagesWithAI(
     quality: 0.82
   });
 
-  const aiEngine = (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
-  const openAiKey = (localStorage.getItem('OPENAI_API_KEY') || (import.meta as any).env?.VITE_OPENAI_API_KEY || '').trim();
-  const localGeminiKey = (localStorage.getItem('GEMINI_API_KEY') || '').trim();
-  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const effectiveGeminiKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (localGeminiKey || envGeminiKey || '');
+  await systemConfigService.init();
+  const aiEngine = (localStorage.getItem('AI_ENGINE') as any) || systemConfigService.getActiveEngine();
+  const openAiKey = (localStorage.getItem('OPENAI_API_KEY') || systemConfigService.getOpenAiKey() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '').trim();
+  const effectiveGeminiKey = (apiKey && apiKey.trim().length > 10) 
+    ? apiKey.trim() 
+    : (systemConfigService.getGeminiKey() || localStorage.getItem('GEMINI_API_KEY') || (import.meta as any).env?.VITE_GEMINI_API_KEY || '');
 
   let rawExtractedQuestions: any[] = [];
   let usedEngine: 'chatgpt' | 'gemini' = 'gemini';

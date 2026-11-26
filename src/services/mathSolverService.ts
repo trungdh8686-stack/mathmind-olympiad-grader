@@ -1,4 +1,5 @@
 import { compressMultipleImages } from './imageCompression';
+import { systemConfigService } from './systemConfigService';
 
 export interface SolverOptions {
   apiKey?: string;        // Gemini API key
@@ -190,10 +191,10 @@ export async function extractTextFromImagesWithAI(
     quality: 0.82
   });
 
-  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
-  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
-  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || envGeminiKey || '';
+  await systemConfigService.init();
+  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || systemConfigService.getActiveEngine();
+  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || systemConfigService.getOpenAiKey() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || systemConfigService.getGeminiKey() || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
 
   const ocrSystemPrompt = `Bạn là Chuyên gia Nhận diện Chữ viết & Đề thi Toán học hàng đầu.
 Nhiệm vụ: Hãy quét và trích xuất TOÀN BỘ nội dung đề bài trong tất cả các trang ảnh được cung cấp thành văn bản thuần (Text).
@@ -294,10 +295,10 @@ export async function solveMathProblemWithAI(
   const grade = options.gradeLevel || 'Lớp 3 (Ruby Đoàn Minh Châu)';
   const program = options.program || 'Toán học Việt Nam & Kỳ thi Olympic Quốc Tế (ASMO, ITMC, GMATH, Kangaroo)';
 
-  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
-  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
-  const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || envGeminiKey || '';
+  await systemConfigService.init();
+  const engine = options.aiEngine || (localStorage.getItem('AI_ENGINE') as any) || systemConfigService.getActiveEngine();
+  const openAiKey = options.openAiKey || localStorage.getItem('OPENAI_API_KEY') || systemConfigService.getOpenAiKey() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+  const geminiKey = options.apiKey || localStorage.getItem('GEMINI_API_KEY') || systemConfigService.getGeminiKey() || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
 
   if (onProgress) onProgress(15, 'Đang chuẩn bị dữ liệu đề bài...');
 
@@ -532,10 +533,10 @@ export async function askFollowUpQuestionToAI(
   openAiKey?: string,
   aiEngine?: string
 ): Promise<string> {
-  const engine = aiEngine || localStorage.getItem('AI_ENGINE') || 'chatgpt';
-  const opKey = openAiKey || localStorage.getItem('OPENAI_API_KEY') || '';
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const gmKey = geminiKey || localStorage.getItem('GEMINI_API_KEY') || envKey || '';
+  await systemConfigService.init();
+  const engine = aiEngine || localStorage.getItem('AI_ENGINE') || systemConfigService.getActiveEngine();
+  const opKey = openAiKey || localStorage.getItem('OPENAI_API_KEY') || systemConfigService.getOpenAiKey() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+  const gmKey = geminiKey || localStorage.getItem('GEMINI_API_KEY') || systemConfigService.getGeminiKey() || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
 
   const prompt = `Bạn là Gia sư Dạy Toán AI tận tâm và kiên nhẫn.
 Học sinh hoặc phụ huynh đang thắc mắc về câu hỏi sau:

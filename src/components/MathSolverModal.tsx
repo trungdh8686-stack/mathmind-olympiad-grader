@@ -510,61 +510,11 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {aiEngine === 'chatgpt' && !openAiKey && (
-                    <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 text-amber-600" />
-                      <span>Chưa có Key ChatGPT</span>
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyInput(!showKeyInput)}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <Key className="w-3 h-3" />
-                    <span>{openAiKey ? 'Đổi Key ChatGPT' : 'Nhập Key ChatGPT Plus'}</span>
-                  </button>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Cloud AI sẵn sàng</span>
                 </div>
               </div>
-
-              {/* Inline OpenAI Key Input if toggled */}
-              {showKeyInput && (
-                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-900">
-                      Nhập OpenAI API Key (tài khoản ChatGPT Plus):
-                    </span>
-                    <a
-                      href="https://platform.openai.com/api-keys"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] text-emerald-700 hover:underline font-semibold"
-                    >
-                      Lấy API key tại OpenAI
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="password"
-                      value={openAiKey}
-                      onChange={(e) => handleSaveOpenAiKey(e.target.value)}
-                      placeholder="sk-proj-... hoặc sk-..."
-                      className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-emerald-300 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowKeyInput(false)}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer"
-                    >
-                      Lưu
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-emerald-800">
-                    Khóa được lưu cục bộ an toàn trên trình duyệt của máy Sếp. Sau khi nhập, AI sẽ gọi trực tiếp mô hình GPT-4o để giải toàn bộ các bài toán.
-                  </p>
-                </div>
-              )}
 
               {/* Target Grade Selector */}
               <div className="space-y-2">

@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, User, ExternalLink, Save, Sparkles, Bot, CheckCircle2, AlertCircle, Loader2, Play } from 'lucide-react';
+import { X, User, Save, Sparkles, Bot, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
 import { TestSummary } from '../data/mockData';
+import { systemConfigService } from '../services/systemConfigService';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   summary: TestSummary;
   onUpdateSummary: (newSummary: Partial<TestSummary>) => void;
-}
-
-interface TestStatus {
-  state: 'idle' | 'testing' | 'success' | 'error';
-  message: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -23,14 +19,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [studentName, setStudentName] = useState(summary.studentName);
   const [grade, setGrade] = useState(summary.grade);
   const [aiEngine, setAiEngine] = useState<'chatgpt' | 'gemini'>(() => {
-    return (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
+    return (localStorage.getItem('AI_ENGINE') as any) || systemConfigService.getActiveEngine();
   });
-  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('GEMINI_API_KEY') || '');
-  const [openAiApiKey, setOpenAiApiKey] = useState(() => localStorage.getItem('OPENAI_API_KEY') || '');
   const [isSaved, setIsSaved] = useState(false);
-
-  const [openAiTestStatus, setOpenAiTestStatus] = useState<TestStatus>({ state: 'idle', message: '' });
-  const [geminiTestStatus, setGeminiTestStatus] = useState<TestStatus>({ state: 'idle', message: '' });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,129 +36,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleTestOpenAi = async () => {
-    const key = openAiApiKey.trim() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
-    if (!key) {
-      setOpenAiTestStatus({
-        state: 'error',
-        message: 'Vui lòng dán khóa API OpenAI (sk-proj-... hoặc sk-...) trước khi kiểm tra.'
-      });
-      return;
-    }
-
-    setOpenAiTestStatus({
-      state: 'testing',
-      message: 'Đang kết nối tới máy chủ OpenAI để kiểm tra gói ChatGPT Plus...'
-    });
-
-    try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { 'Authorization': `Bearer ${key}` }
-      });
-      if (res.ok) {
-        setOpenAiTestStatus({
-          state: 'success',
-          message: 'Kết nối thành công! Đã xác thực API ChatGPT Plus (GPT-4o sẵn sàng hoạt động).'
-        });
-      } else {
-        const data = await res.json().catch(() => ({}));
-        const errMsg = data?.error?.message || `Mã lỗi HTTP ${res.status}`;
-        setOpenAiTestStatus({
-          state: 'error',
-          message: `Lỗi kết nối OpenAI: ${errMsg}`
-        });
-      }
-    } catch (err: any) {
-      setOpenAiTestStatus({
-        state: 'error',
-        message: `Không thể kết nối máy chủ OpenAI: ${err.message}`
-      });
-    }
-  };
-
-  const handleTestGemini = async () => {
-    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    const key = geminiApiKey.trim() || envKey || '';
-    if (!key) {
-      setGeminiTestStatus({
-        state: 'error',
-        message: 'Vui lòng dán khóa API Google Gemini trước khi kiểm tra.'
-      });
-      return;
-    }
-
-    setGeminiTestStatus({
-      state: 'testing',
-      message: 'Đang kết nối tới Google AI Studio để kiểm tra Gemini Pro...'
-    });
-
-    const modelsToTest = [
-      'gemini-1.5-pro',
-      'gemini-pro-latest',
-      'gemini-3.1-pro-preview',
-      'gemini-2.5-pro',
-      'gemini-3.8-flash',
-      'gemini-3-flash-preview',
-      'gemini-flash-latest'
-    ];
-
-    let succeeded = false;
-    let successfulModel = '';
-    let lastError = '';
-
-    for (const m of modelsToTest) {
-      try {
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: '1+1=' }] }] }),
-          signal: controller.signal
-        });
-        clearTimeout(tid);
-
-        if (res.ok) {
-          succeeded = true;
-          successfulModel = m;
-          break;
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          lastError = errData?.error?.message || `HTTP ${res.status}`;
-        }
-      } catch (e: any) {
-        lastError = e.message;
-      }
-    }
-
-    if (succeeded) {
-      setGeminiTestStatus({
-        state: 'success',
-        message: `Kết nối thành công! Model ${successfulModel} (Google Gemini) đã sẵn sàng.`
-      });
-    } else {
-      setGeminiTestStatus({
-        state: 'error',
-        message: `Lỗi kết nối Gemini: ${lastError}`
-      });
-    }
-  };
-
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('AI_ENGINE', aiEngine);
-
-    if (geminiApiKey.trim()) {
-      localStorage.setItem('GEMINI_API_KEY', geminiApiKey.trim());
-    } else {
-      localStorage.removeItem('GEMINI_API_KEY');
-    }
-
-    if (openAiApiKey.trim()) {
-      localStorage.setItem('OPENAI_API_KEY', openAiApiKey.trim());
-    } else {
-      localStorage.removeItem('OPENAI_API_KEY');
-    }
 
     onUpdateSummary({
       studentName: studentName.trim() || 'Ruby (Đoàn Minh Châu)',
@@ -190,8 +61,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Bot className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Cấu Hình Nền Tảng AI</h3>
-              <p className="text-xs text-slate-500">Hệ sinh thái ChatGPT Plus & Google Gemini Pro</p>
+              <h3 className="text-lg font-bold text-slate-900">Cấu Hình Nền Tảng Học Tập</h3>
+              <p className="text-xs text-slate-500">Dành cho học sinh & Thiết bị gia đình</p>
             </div>
           </div>
           <button
@@ -203,10 +74,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <form onSubmit={handleSave} className="py-5 space-y-4">
+          {/* Cloud AI Integration Status Badge */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs text-emerald-950">Hệ Thống AI Đám Mây Đã Kết Nối</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-200 text-emerald-800">
+                    SẴN SÀNG
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-700 mt-0.5 leading-snug">
+                  Đã kết nối tự động ChatGPT Plus (GPT-4o) & Google Gemini Pro cho toàn bộ máy tính, điện thoại ở công ty và tại nhà.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* AI Engine Choice */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Mô hình AI cốt lõi ưu tiên:
+              Mô hình AI ưu tiên xử lý bài tập:
             </label>
             <div className="grid grid-cols-2 gap-2.5">
               <button
@@ -228,7 +119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  OpenAI GPT-4o Plus, tư duy logic Olympic chuẩn mực và nhận diện toàn diện
+                  Tư duy giải toán Olympic chuẩn xác nhất, phân tích chi tiết từng bước
                 </p>
               </button>
 
@@ -251,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  Google Gemini Pro / Flash Vision, tốc độ cao và suy luận đa phương tiện
+                  Tốc độ phân tích hình ảnh siêu tốc, xử lý bài tập đa phương tiện
                 </p>
               </button>
             </div>
@@ -283,143 +174,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
 
-          {/* OpenAI ChatGPT API Key */}
-          <div className="pt-2 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-emerald-600" />
-                <span>OpenAI / ChatGPT Plus API Key:</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTestOpenAi}
-                  disabled={openAiTestStatus.state === 'testing'}
-                  className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  {openAiTestStatus.state === 'testing' ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-                      <span>Đang test...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-                      <span>Kiểm tra kết nối</span>
-                    </>
-                  )}
-                </button>
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <span>Lấy key</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-            <input
-              type="password"
-              value={openAiApiKey}
-              onChange={(e) => {
-                setOpenAiApiKey(e.target.value);
-                setOpenAiTestStatus({ state: 'idle', message: '' });
-              }}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
-              placeholder="Dán sk-proj-... hoặc sk-... của tài khoản ChatGPT Plus"
-            />
-            {openAiTestStatus.state !== 'idle' && (
-              <div
-                className={`mt-2 p-2.5 rounded-xl text-xs flex items-start gap-2 ${
-                  openAiTestStatus.state === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : openAiTestStatus.state === 'testing'
-                    ? 'bg-slate-50 text-slate-700 border border-slate-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {openAiTestStatus.state === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />}
-                {openAiTestStatus.state === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
-                {openAiTestStatus.state === 'testing' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0 mt-0.5" />}
-                <span className="leading-snug">{openAiTestStatus.message}</span>
-              </div>
-            )}
-            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Dành cho Sếp đã có tài khoản OpenAI / ChatGPT Plus để giải đề thi bằng GPT-4o chuẩn mực nhất.
-            </p>
-          </div>
-
-          {/* Gemini API Key */}
-          <div className="pt-2 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-blue-600" />
-                <span>Google Gemini Pro API Key:</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTestGemini}
-                  disabled={geminiTestStatus.state === 'testing'}
-                  className="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  {geminiTestStatus.state === 'testing' ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
-                      <span>Đang test...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3 h-3 fill-blue-600 text-blue-600" />
-                      <span>Kiểm tra kết nối</span>
-                    </>
-                  )}
-                </button>
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <span>Lấy key Google</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-            <input
-              type="password"
-              value={geminiApiKey}
-              onChange={(e) => {
-                setGeminiApiKey(e.target.value);
-                setGeminiTestStatus({ state: 'idle', message: '' });
-              }}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
-              placeholder="Dán AIzaSy... để kích hoạt Gemini Pro"
-            />
-            {geminiTestStatus.state !== 'idle' && (
-              <div
-                className={`mt-2 p-2.5 rounded-xl text-xs flex items-start gap-2 ${
-                  geminiTestStatus.state === 'success'
-                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                    : geminiTestStatus.state === 'testing'
-                    ? 'bg-slate-50 text-slate-700 border border-slate-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {geminiTestStatus.state === 'success' && <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />}
-                {geminiTestStatus.state === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
-                {geminiTestStatus.state === 'testing' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0 mt-0.5" />}
-                <span className="leading-snug">{geminiTestStatus.message}</span>
-              </div>
-            )}
-            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Hỗ trợ Gemini 1.5 Pro, Gemini Pro Latest và Gemini Flash Vision. Khóa được bảo mật trên trình duyệt của máy.
-            </p>
-          </div>
-
-          <div className="pt-4 flex items-center justify-end gap-2">
+          <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
@@ -432,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>{isSaved ? 'Đã lưu thành công!' : 'Lưu cài đặt'}</span>
+              <span>{isSaved ? 'Đã lưu thành công!' : 'Lưu thông tin'}</span>
             </button>
           </div>
         </form>
