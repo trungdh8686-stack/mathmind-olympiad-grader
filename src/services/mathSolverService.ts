@@ -163,7 +163,12 @@ export function getSolverSessionById(id: string): SolverSession | null {
   return sessions.find(s => s.id === id) || null;
 }
 
-const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+const GEMINI_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3-flash-preview',
+  'gemini-flash-latest',
+  'gemini-3.1-pro-preview'
+];
 
 /**
  * Step 1: Extract and convert all uploaded images into clean, editable text problems (OCR).

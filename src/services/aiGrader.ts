@@ -49,10 +49,10 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
 Trả về DUY NHẤT một mảng JSON các câu hỏi trong cặp dấu \`\`\`json [ ... ] \`\`\``;
 
   const modelsToTry = [
-    'gemini-3.5-flash',
-    'gemini-flash-lite-latest',
-    'gemini-3.5-flash-lite',
-    'gemini-flash-latest'
+    'gemini-3.8-flash',
+    'gemini-3-flash-preview',
+    'gemini-flash-latest',
+    'gemini-3.1-pro-preview'
   ];
 
   for (const model of modelsToTry) {
