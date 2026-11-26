@@ -62,16 +62,21 @@ export function reconcileAnswerWithSolutionSteps(finalAnswer: string, solutionSt
   for (const step of candidatesToCheck) {
     if (!step) continue;
 
-    // Pattern 1: Explicit "Đáp số: ...", "Kết luận: ...", "Vậy ... là ..."
-    const conclusionMatch = step.match(/(?:đáp số|kết luận|vậy.*?là|tổng.*?là|chi phí.*?là|đáp án.*?là)\s*:?\s*([0-9.,]+)\s*(đồng|đ|VNĐ|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu)?/i);
-    
+    // Pattern 1: Division with remainder: "= [quotient] dư [remainder]" -> the answer is the quotient!
+    const divRemainderMatch = step.match(/=\s*([0-9.,]+)\s*(?:dư|remainder)\s*[0-9.,]+/i);
+
     // Pattern 2: Find all "= [number] [unit]?" in the step and take the LAST one (the final calculation result)
-    const eqMatches = [...step.matchAll(/=\s*([0-9.,]+)\s*(đồng|đ|VNĐ|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu)?/gi)];
+    const eqMatches = [...step.matchAll(/=\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món)?/gi)];
     const lastEqMatch = eqMatches.length > 0 ? eqMatches[eqMatches.length - 1] : null;
 
-    const matched = conclusionMatch || lastEqMatch;
+    // Pattern 3: Explicit conclusion indicators when no equation sign is present:
+    // "đáp số:", "lớn nhất là", "nhỏ nhất là", "mua được nhiều nhất là", "tối đa là", "tổng cộng là", "vậy ... là"
+    const conclusionMatch = step.match(/(?:đáp số|kết luận|lớn nhất là|nhỏ nhất là|số cần tìm là|mua được nhiều nhất(?: là)?|tối đa(?: là|=)?|kết quả(?: là|=)?|vậy.*?là|chi phí.*?là|đáp án.*?là|chính là|giá trị.*?là)\s*:?\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món)?/i);
+
+    const matched = divRemainderMatch || lastEqMatch || conclusionMatch;
     if (matched) {
-      const calculatedVal = matched[1].trim();
+      // Clean up any trailing dots or commas
+      const calculatedVal = matched[1].replace(/[.,]$/, '').trim();
       const unit = matched[2] 
         ? ` ${matched[2].trim()}` 
         : (finalAnswer.includes('đồng') ? ' đồng' : (finalAnswer.includes('VNĐ') ? ' VNĐ' : (finalAnswer.includes('m²') ? ' m²' : (finalAnswer.includes('cm²') ? ' cm²' : ''))));
