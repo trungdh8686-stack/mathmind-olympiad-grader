@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Camera, Sparkles, X, FileImage, CheckCircle, RefreshCw } from 'lucide-react';
+import { Upload, Camera, Sparkles, X, FileImage, Image as ImageIcon, Plus, CheckCircle, RefreshCw } from 'lucide-react';
 import { gradeImagesWithAI, GradingProgress } from '../services/aiGrader';
 import { MathQuestion, TestSummary } from '../data/mockData';
 
@@ -18,7 +18,10 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
     progress: 0,
     message: ''
   });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Separate refs: One for Photo Gallery (multiple photos, NO capture) and one for live Camera (capture="environment")
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -41,7 +44,10 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selected = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...selected]);
+      if (selected.length > 0) {
+        setFiles(prev => [...prev, ...selected]);
+      }
+      e.target.value = '';
     }
   };
 
@@ -82,7 +88,7 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
   const isGrading = progress.status !== 'idle' && progress.status !== 'error';
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-xs space-y-4">
+    <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-1.5">
@@ -93,7 +99,7 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
             Chấm Điểm Phiếu Luyện Tập Mới (Bất Kỳ Tuần Nào)
           </h3>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
-            Ruby hoặc ba mẹ chỉ cần kéo thả ảnh hoặc chụp phiếu làm bài (Tuần 11, Tuần 12, Đề thi Olympic...) để AI tự động chấm!
+            Chọn ảnh từ thư viện hoặc chụp camera phiếu làm bài (Tuần 11, Tuần 12, Đề thi Olympic...) để AI tự động chấm!
           </p>
         </div>
 
@@ -108,37 +114,86 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
         )}
       </div>
 
-      {/* Drag & Drop Box */}
+      {/* Hidden inputs */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileInput}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileInput}
+      />
+
+      {/* Actions & Drag Drop Box */}
       {!isGrading ? (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center group ${
-            isDragging
-              ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
-              : 'border-slate-300 hover:border-indigo-400 bg-slate-50/60 hover:bg-indigo-50/20'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileInput}
-          />
-          <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-xs">
-            <Upload className="w-6 h-6" />
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Button 1: Thư viện ảnh (Cho phép chọn nhiều ảnh trên mobile) */}
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-indigo-300 hover:border-indigo-500 bg-gradient-to-br from-indigo-50/70 to-blue-50/50 hover:bg-indigo-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <ImageIcon className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors flex items-center gap-1.5">
+                  <span>Chọn từ Thư viện ảnh</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">Nhiều ảnh</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                  Mở album ảnh để chọn cùng lúc nhiều trang (Trang 1, 2, 3...)
+                </p>
+              </div>
+            </button>
+
+            {/* Button 2: Chụp trực tiếp bằng Camera */}
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-teal-300 hover:border-teal-500 bg-gradient-to-br from-teal-50/70 to-cyan-50/50 hover:bg-teal-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <Camera className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors flex items-center gap-1.5">
+                  <span>Chụp ảnh từ Camera</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-700">Trực tiếp</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                  Mở máy ảnh chụp ngay phiếu bài tập của con
+                </p>
+              </div>
+            </button>
           </div>
-          <p className="text-sm font-bold text-slate-800">
-            Kéo & thả ảnh phiếu bài tập vào đây, hoặc <span className="text-indigo-600 underline">bấm để chọn ảnh / chụp camera</span>
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Hỗ trợ nhiều trang cùng lúc (PNG, JPG, WebP) • AI tự động nhận diện chữ viết tay & đề bài
-          </p>
+
+          {/* Desktop Drag and Drop fallback */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => galleryInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl p-4 sm:p-5 text-center cursor-pointer transition-all duration-200 group flex items-center justify-center gap-2 ${
+              isDragging
+                ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
+                : 'border-slate-200 hover:border-indigo-400 bg-slate-50/40 hover:bg-indigo-50/20'
+            }`}
+          >
+            <Upload className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-xs text-slate-600 font-medium">
+              Hoặc kéo & thả file ảnh trực tiếp vào đây (PNG, JPG, WebP)
+            </span>
+          </div>
         </div>
       ) : (
         <div className="p-8 text-center bg-indigo-50/40 rounded-2xl border border-indigo-100 space-y-3">
@@ -160,15 +215,35 @@ export const DropZoneSection: React.FC<DropZoneSectionProps> = ({ onGradingCompl
 
       {/* Selected images preview */}
       {files.length > 0 && !isGrading && (
-        <div className="space-y-2 pt-1">
-          <div className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+        <div className="space-y-2 pt-1 border-t border-slate-100">
+          <div className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
             <span>Đã chọn {files.length} ảnh phiếu bài:</span>
-            <button
-              onClick={() => setFiles([])}
-              className="text-slate-400 hover:text-rose-500 font-semibold cursor-pointer text-xs"
-            >
-              Xóa tất cả
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Thêm ảnh</span>
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Chụp thêm</span>
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                onClick={() => setFiles([])}
+                className="text-slate-400 hover:text-rose-500 font-semibold cursor-pointer text-xs"
+              >
+                Xóa tất cả
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
             {files.map((file, idx) => (

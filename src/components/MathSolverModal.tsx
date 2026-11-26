@@ -28,7 +28,8 @@ import {
   Download,
   Plus,
   Key,
-  Bot
+  Bot,
+  Image as ImageIcon
 } from 'lucide-react';
 import { User } from '../types/auth';
 import {
@@ -102,7 +103,9 @@ export const MathSolverModal: React.FC<MathSolverModalProps> = ({
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const addMoreInputRef = useRef<HTMLInputElement>(null);
+  const addMoreCameraInputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Refresh history on open
@@ -625,17 +628,48 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
               {inputMode === 'image' ? (
                 <div className="space-y-4">
                   {imageFiles.length === 0 ? (
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                      onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`relative border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-3 ${
-                        isDragging
-                          ? 'border-amber-500 bg-amber-50/50 scale-[0.99]'
-                          : 'border-slate-300 hover:border-amber-400 bg-slate-50/50 hover:bg-amber-50/20'
-                      }`}
-                    >
+                    <div className="space-y-3">
+                      {/* Action cards: Thư viện vs Camera */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-amber-300 hover:border-amber-500 bg-gradient-to-br from-amber-50/70 to-orange-50/50 hover:bg-amber-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                            <ImageIcon className="w-6 h-6" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-extrabold text-slate-900 group-hover:text-amber-700 transition-colors flex items-center gap-1.5">
+                              <span>Chọn từ Thư viện ảnh</span>
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Nhiều ảnh</span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                              Mở album chọn cùng lúc nhiều trang đề bài (Trang 1, 2, 3...)
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-teal-300 hover:border-teal-500 bg-gradient-to-br from-teal-50/70 to-cyan-50/50 hover:bg-teal-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                            <Camera className="w-6 h-6" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors flex items-center gap-1.5">
+                              <span>Chụp ảnh từ Camera</span>
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-700">Trực tiếp</span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                              Mở máy ảnh chụp ngay phiếu đề bài toán
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -646,28 +680,45 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
                           if (e.target.files) {
                             handleSelectFiles(e.target.files);
                           }
+                          e.target.value = '';
                         }}
                       />
-                      <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner">
-                        <Upload className="w-7 h-7" />
-                      </div>
-                      <div>
-                        <div className="font-extrabold text-slate-900 text-base sm:text-lg">
-                          Kéo thả 1 hoặc NHIỀU ẢNH đề bài vào đây
-                        </div>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                          hoặc bấm vào để chọn ảnh từ máy (chọn cùng lúc nhiều ảnh trang 1, trang 2, trang 3...)
-                        </p>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-2">
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>Hỗ trợ chọn nhiều trang ảnh • Có nút chuyển sang Đề Text để rà soát trước khi giải</span>
+                      <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) {
+                            handleSelectFiles(e.target.files);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+
+                      {/* Desktop drag & drop fallback */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`relative border-2 border-dashed rounded-2xl p-4 sm:p-5 text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                          isDragging
+                            ? 'border-amber-500 bg-amber-50/50 scale-[0.99]'
+                            : 'border-slate-200 hover:border-amber-400 bg-slate-50/40 hover:bg-amber-50/20'
+                        }`}
+                      >
+                        <Upload className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="text-xs text-slate-600 font-medium">
+                          Hoặc kéo thả file ảnh đề bài vào đây (JPG, PNG, WebP)
+                        </span>
                       </div>
                     </div>
                   ) : (
                     /* Multi-image thumbnail gallery */
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                           <Camera className="w-4 h-4 text-amber-600" />
                           <span>Đã chọn {imageFiles.length} trang ảnh đề thi:</span>
@@ -684,6 +735,20 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
                               if (e.target.files) {
                                 handleSelectFiles(e.target.files);
                               }
+                              e.target.value = '';
+                            }}
+                          />
+                          <input
+                            ref={addMoreCameraInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files) {
+                                handleSelectFiles(e.target.files);
+                              }
+                              e.target.value = '';
                             }}
                           />
                           <button
@@ -692,7 +757,16 @@ ${currentQuestion.tips ? `MẸO GIẢI NHANH OLYMPIC:\n${currentQuestion.tips}` 
                             className="px-3 py-1.5 rounded-xl border border-slate-300 hover:border-amber-400 bg-white text-xs font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
                           >
                             <Plus className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Thêm ảnh khác</span>
+                            <span>+ Thêm ảnh</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => addMoreCameraInputRef.current?.click()}
+                            className="px-3 py-1.5 rounded-xl border border-teal-300 hover:border-teal-500 bg-teal-50 text-teal-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-teal-600" />
+                            <span>+ Chụp thêm</span>
                           </button>
 
                           <button

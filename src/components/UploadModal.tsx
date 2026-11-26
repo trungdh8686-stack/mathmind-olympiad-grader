@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Camera, Sparkles, Image as ImageIcon, Trash2, CheckCircle, RefreshCw } from 'lucide-react';
+import { X, Upload, Camera, Sparkles, Image as ImageIcon, Trash2, CheckCircle, RefreshCw, Plus } from 'lucide-react';
 import { gradeImagesWithAI, GradingProgress } from '../services/aiGrader';
 import { MathQuestion, TestSummary } from '../data/mockData';
 
@@ -27,7 +27,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     progress: 0,
     message: ''
   });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Separate refs: One for Photo Gallery (multiple images, NO capture) and one for live Camera (capture="environment")
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,7 +69,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selected = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...selected]);
+      if (selected.length > 0) {
+        setFiles(prev => [...prev, ...selected]);
+      }
+      // Reset input value so selecting the same file triggers change event
+      e.target.value = '';
     }
   };
 
@@ -126,19 +133,19 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200 overflow-hidden">
+      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-5 sm:p-8 border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
-              <Camera className="w-5 h-5" />
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900">
                 Chấm Điểm Bài Tập Mới Bằng AI
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Kéo thả hoặc tải lên nhiều ảnh bài làm của con để hệ thống chấm tự động
+                Chọn ảnh từ thư viện hoặc chụp camera trực tiếp bài làm của con
               </p>
             </div>
           </div>
@@ -152,7 +159,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="py-5 space-y-4">
+        <div className="py-4 space-y-4 overflow-y-auto flex-1 pr-0.5">
           {/* Quick Switch to Solver */}
           {onOpenSolver && !isGrading && (
             <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex items-center justify-between gap-3">
@@ -175,37 +182,86 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             </div>
           )}
 
-          {/* File Drag and Drop Zone */}
+          {/* Hidden inputs: 1 for Gallery (NO capture), 1 for Camera (capture="environment") */}
+          <input
+            ref={galleryInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          {/* Action Cards: Chọn Thư Viện vs Chụp Camera */}
           {!isGrading ? (
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all duration-200 group flex flex-col items-center justify-center ${
-                isDragging
-                  ? 'border-emerald-500 bg-emerald-50/60 scale-[1.01]'
-                  : 'border-slate-300 hover:border-emerald-500 bg-slate-50/60 hover:bg-emerald-50/30'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3.5 group-hover:scale-110 transition-transform shadow-xs">
-                <Upload className="w-7 h-7" />
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Button 1: Thư viện ảnh (Cho phép chọn nhiều ảnh trên iOS / Android) */}
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-emerald-300 hover:border-emerald-500 bg-gradient-to-br from-emerald-50/70 to-teal-50/50 hover:bg-emerald-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <ImageIcon className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
+                      <span>Chọn từ Thư viện ảnh</span>
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Nhiều ảnh</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                      Mở album ảnh để chọn cùng lúc nhiều trang (Trang 1, 2, 3...)
+                    </p>
+                  </div>
+                </button>
+
+                {/* Button 2: Chụp trực tiếp bằng Camera */}
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-teal-300 hover:border-teal-500 bg-gradient-to-br from-teal-50/70 to-cyan-50/50 hover:bg-teal-100/60 transition-all text-left group cursor-pointer shadow-xs active:scale-[0.98]"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors flex items-center gap-1.5">
+                      <span>Chụp ảnh từ Camera</span>
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-700">Trực tiếp</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                      Bật máy ảnh chụp ngay phiếu bài tập của con
+                    </p>
+                  </div>
+                </button>
               </div>
-              <h4 className="text-base font-bold text-slate-800">
-                Kéo & thả nhiều ảnh vào đây, hoặc <span className="text-emerald-600 underline">bấm để chọn ảnh / chụp camera</span>
-              </h4>
-              <p className="text-xs text-slate-500 mt-1.5 font-medium">
-                Hỗ trợ chọn hoặc kéo thả nhiều trang cùng lúc (JPG, PNG, WebP)
-              </p>
+
+              {/* Desktop Drag and Drop fallback */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => galleryInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 group flex items-center justify-center gap-2 ${
+                  isDragging
+                    ? 'border-emerald-500 bg-emerald-50/60 scale-[1.01]'
+                    : 'border-slate-200 hover:border-emerald-400 bg-slate-50/40 hover:bg-emerald-50/20'
+                }`}
+              >
+                <Upload className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-xs text-slate-600 font-medium">
+                  Hoặc kéo & thả file ảnh trực tiếp vào đây (JPG, PNG, WebP)
+                </span>
+              </div>
             </div>
           ) : (
             /* Grading Progress Indicator */
@@ -228,15 +284,36 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
           {/* Selected Files Preview List */}
           {files.length > 0 && !isGrading && (
-            <div className="space-y-2 pt-2">
-              <div className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+            <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
                 <span>Đã chọn {files.length} ảnh bài làm:</span>
-                <button
-                  onClick={() => setFiles([])}
-                  className="text-xs text-rose-600 hover:underline font-semibold cursor-pointer"
-                >
-                  Xóa tất cả
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Thêm ảnh</span>
+                  </button>
+                  <span className="text-slate-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Chụp thêm</span>
+                  </button>
+                  <span className="text-slate-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiles([])}
+                    className="text-xs text-rose-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Xóa tất cả
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-48 overflow-y-auto p-1">
                 {files.map((f, idx) => (
