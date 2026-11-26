@@ -1,5 +1,6 @@
 import { MathQuestion, TestSummary, INITIAL_QUESTIONS } from '../data/mockData';
 import { compressMultipleImages } from './imageCompression';
+import { reconcileAnswerWithSolutionSteps } from './mathSolverService';
 
 export interface GradingProgress {
   status: 'idle' | 'uploading' | 'ocr_scanning' | 'ai_evaluating' | 'generating_report' | 'completed' | 'error';
@@ -35,7 +36,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
    - title: Tiêu đề (ví dụ 'Câu 1: Phép tính', 'Câu 14: Hình học'...)
    - question: Nội dung đầy đủ đề bài bằng tiếng Anh và tiếng Việt song ngữ.
    - studentAnswer: Trích xuất chính xác chữ/số viết tay của học sinh trên ảnh. Nếu học sinh chưa viết đáp án thì ghi '(Chưa làm)'.
-   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán.
+   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán. BẮT BUỘC: correctAnswer PHẢI TRÙNG KHỚP 100% VỚI KẾT QUẢ Ở BƯỚC GIẢI CUỐI CÙNG TRONG solutionSteps.
    - status: 'correct' nếu học sinh làm đúng; 'wrong' nếu học sinh làm sai; 'unanswered' nếu học sinh chưa làm; 'need_verify' nếu cần xác minh.
    - statusText: 'Đúng', 'Sai / Cần sửa', 'Chưa làm', hoặc 'Cần xác minh'.
    - category: Chủ đề toán học (Số học, Hình học, Tổ hợp, Logic, Đại số...).
@@ -120,7 +121,7 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
    - title: Tiêu đề (ví dụ 'Câu 1: Phép tính', 'Câu 14: Hình học'...)
    - question: Nội dung đầy đủ đề bài bằng tiếng Anh và tiếng Việt song ngữ.
    - studentAnswer: Trích xuất chính xác chữ/số viết tay của học sinh trên ảnh. Nếu học sinh chưa viết đáp án thì ghi '(Chưa làm)'.
-   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán.
+   - correctAnswer: Đáp án đúng và chuẩn xác của bài toán. BẮT BUỘC: correctAnswer PHẢI TRÙNG KHỚP 100% VỚI KẾT QUẢ Ở BƯỚC GIẢI CUỐI CÙNG TRONG solutionSteps.
    - status: 'correct' nếu học sinh làm đúng; 'wrong' nếu học sinh làm sai; 'unanswered' nếu học sinh chưa làm; 'need_verify' nếu cần xác minh.
    - statusText: 'Đúng', 'Sai / Cần sửa', 'Chưa làm', hoặc 'Cần xác minh'.
    - category: Chủ đề toán học (Số học, Hình học, Tổ hợp, Logic, Đại số...).
@@ -330,6 +331,9 @@ export async function gradeImagesWithAI(
         const qList: MathQuestion[] = sortedQuestions.map((q: any, idx: number) => {
           const qId = Number(q.id) || (idx + 1);
           const partNum = Math.ceil(qId / 10);
+          const rawCorrect = q.correctAnswer || '';
+          const steps = q.solutionSteps || [];
+          const verifiedCorrect = reconcileAnswerWithSolutionSteps(rawCorrect, steps);
           return {
             id: qId,
             part: partNum,
@@ -338,13 +342,13 @@ export async function gradeImagesWithAI(
             question: q.question || '',
             keywords: q.keywords || '',
             studentAnswer: q.studentAnswer || '(Chưa làm)',
-            correctAnswer: q.correctAnswer || '',
+            correctAnswer: verifiedCorrect,
             status: q.status || (q.studentAnswer && q.studentAnswer !== '(Chưa làm)' ? 'correct' : 'unanswered'),
             statusText: q.statusText || (q.status === 'wrong' ? 'Sai / Cần sửa' : (q.status === 'unanswered' ? 'Chưa làm' : 'Đúng')),
             category: q.category || 'Toán học',
             difficulty: q.difficulty || 'Trung bình',
             explanation: q.explanation || '',
-            solutionSteps: q.solutionSteps || [],
+            solutionSteps: steps,
             studentMistake: q.studentMistake || null,
             tips: q.tips || ''
           };

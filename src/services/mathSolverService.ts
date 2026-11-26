@@ -46,13 +46,68 @@ export interface SolverChatMessage {
 
 const STORAGE_KEY = 'MATHMIND_SOLVER_SESSIONS';
 
+/**
+ * Intelligent Consistency Reconciler:
+ * Detects and eliminates contradictions between top-level finalAnswer and the step-by-step calculation.
+ * If the step-by-step arithmetic chain concludes with X (e.g. 2.600.000 đồng) but finalAnswer had Y (e.g. 5.200.000 đồng),
+ * this reconciler automatically corrects finalAnswer to match the verified step-by-step calculation.
+ */
+export function reconcileAnswerWithSolutionSteps(finalAnswer: string, solutionSteps: string[]): string {
+  if (!solutionSteps || !Array.isArray(solutionSteps) || solutionSteps.length === 0) return finalAnswer || '';
+  if (!finalAnswer) return finalAnswer || '';
+
+  const candidatesToCheck = [solutionSteps[solutionSteps.length - 1]];
+  if (solutionSteps.length > 1) candidatesToCheck.push(solutionSteps[solutionSteps.length - 2]);
+
+  for (const step of candidatesToCheck) {
+    if (!step) continue;
+
+    // Pattern 1: Explicit "Đáp số: ...", "Kết luận: ...", "Vậy ... là ..."
+    const conclusionMatch = step.match(/(?:đáp số|kết luận|vậy.*?là|tổng.*?là|chi phí.*?là|đáp án.*?là)\s*:?\s*([0-9.,]+)\s*(đồng|đ|VNĐ|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu)?/i);
+    
+    // Pattern 2: Find all "= [number] [unit]?" in the step and take the LAST one (the final calculation result)
+    const eqMatches = [...step.matchAll(/=\s*([0-9.,]+)\s*(đồng|đ|VNĐ|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu)?/gi)];
+    const lastEqMatch = eqMatches.length > 0 ? eqMatches[eqMatches.length - 1] : null;
+
+    const matched = conclusionMatch || lastEqMatch;
+    if (matched) {
+      const calculatedVal = matched[1].trim();
+      const unit = matched[2] 
+        ? ` ${matched[2].trim()}` 
+        : (finalAnswer.includes('đồng') ? ' đồng' : (finalAnswer.includes('VNĐ') ? ' VNĐ' : (finalAnswer.includes('m²') ? ' m²' : (finalAnswer.includes('cm²') ? ' cm²' : ''))));
+      
+      const cleanFinalDigits = finalAnswer.replace(/[^0-9]/g, '');
+      const cleanCalcDigits = calculatedVal.replace(/[^0-9]/g, '');
+
+      // If both contain numeric digits and they disagree, prioritize the verified step-by-step arithmetic chain!
+      if (cleanFinalDigits && cleanCalcDigits && cleanFinalDigits !== cleanCalcDigits) {
+        console.warn(`[Auto-Reconcile] Corrected answer mismatch: "${finalAnswer}" -> "${calculatedVal}${unit}" based on step calculation.`);
+        return `${calculatedVal}${unit}`;
+      }
+      break;
+    }
+  }
+
+  return finalAnswer;
+}
+
 // Local storage session management
 export function getSolverSessions(): SolverSession[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const list: SolverSession[] = JSON.parse(raw);
-    return Array.isArray(list) ? list.sort((a, b) => b.timestamp - a.timestamp) : [];
+    if (!Array.isArray(list)) return [];
+    
+    // Auto-sanitize existing sessions to guarantee 100% coherence between finalAnswer and solutionSteps
+    const sanitized = list.map(session => ({
+      ...session,
+      questions: (session.questions || []).map(q => ({
+        ...q,
+        finalAnswer: reconcileAnswerWithSolutionSteps(q.finalAnswer, q.solutionSteps)
+      }))
+    }));
+    return sanitized.sort((a, b) => b.timestamp - a.timestamp);
   } catch (e) {
     console.warn('Failed to load solver sessions:', e);
     return [];
@@ -244,11 +299,17 @@ QUY TẮC BẮT BUỘC:
    - "textVi": Đề bài tiếng Việt dịch chuẩn xác, sư phạm.
    - "category": Phân loại dạng toán (Số học, Hình học, Tổ hợp, Logic, Lập số, Chu kỳ, Tiền tệ...).
    - "difficulty": 'Cơ bản' | 'Nâng cao' | 'Olympic / Học sinh giỏi'.
-   - "finalAnswer": Đáp số cuối cùng ngắn gọn, rõ ràng (ví dụ: "28", "53", "Saturday (Thứ Bảy)", "18", "90 cm²").
+   - "finalAnswer": Đáp số cuối cùng ngắn gọn, rõ ràng (ví dụ: "28", "53", "Saturday (Thứ Bảy)", "18", "90 cm²", "2.600.000 đồng").
    - "solutionSteps": Mảng các bước giải chi tiết từng bước chuẩn mực sư phạm, dễ hiểu cho lứa tuổi học sinh (${grade}).
    - "tips": Mẹo tư duy nhanh, bẫy trắc nghiệm cần tránh.
    - "coreFormulas": Mảng các công thức hoặc quy tắc cốt lõi áp dụng trong bài.
    - "alternateMethod": Cách giải 2 (nếu có).
+
+3. QUY TẮC SỐNG CÒN VỀ TÍNH NHẤT QUÁN CỦA ĐÁP SỐ (COHERENCE & SELF-VERIFICATION):
+   - "finalAnswer" BẮT BUỘC PHẢI TRÙNG KHỚP 100% VỚI PHÉP TÍNH VÀ KẾT QUẢ Ở BƯỚC CUỐI CÙNG TRONG "solutionSteps".
+   - TUYỆT ĐỐI KHÔNG ĐƯỢC để bước giải tính ra một số (ví dụ 13m² x 200.000 = 2.600.000 đồng) mà "finalAnswer" lại ghi một số khác (ví dụ 5.200.000 đồng). Bất kỳ sự mâu thuẫn nào giữa lời giải và đáp số đều là lỗi sai nghiêm trọng!
+   - BẮT BUỘC TỰ ĐỐI CHIẾU TRƯỚC KHI XUẤT: Sau khi viết xong các bước giải, kiểm tra con số cuối cùng của bước cuối rồi điền CHÍNH XÁC con số đó vào "finalAnswer".
+   - Chú ý các bẫy thực tế: Ví dụ lưới sân tennis được đặt ở chính giữa sân thì phải căng ngang theo chiều rộng của sân (để chia đôi chiều dài), do đó chiều dài lưới phụ thuộc vào chiều rộng sân cộng thêm khoảng cách cọc hai bên.
 
 TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
 {
@@ -376,19 +437,24 @@ TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
   }
 
   if (parsed && parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-    const questionsList: SolvedQuestionItem[] = parsed.questions.map((q: any, idx: number) => ({
-      questionNumber: q.questionNumber || idx + 1,
-      title: q.title || `Câu ${q.questionNumber || idx + 1}`,
-      textEn: q.textEn || '',
-      textVi: q.textVi || q.question || '',
-      category: q.category || 'Toán học',
-      difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
-      finalAnswer: q.finalAnswer || '',
-      solutionSteps: Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''],
-      tips: q.tips || '',
-      coreFormulas: q.coreFormulas || [],
-      alternateMethod: q.alternateMethod || undefined
-    }));
+    const questionsList: SolvedQuestionItem[] = parsed.questions.map((q: any, idx: number) => {
+      const steps = Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''];
+      const rawAns = q.finalAnswer || '';
+      const verifiedAns = reconcileAnswerWithSolutionSteps(rawAns, steps);
+      return {
+        questionNumber: q.questionNumber || idx + 1,
+        title: q.title || `Câu ${q.questionNumber || idx + 1}`,
+        textEn: q.textEn || '',
+        textVi: q.textVi || q.question || '',
+        category: q.category || 'Toán học',
+        difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
+        finalAnswer: verifiedAns,
+        solutionSteps: steps,
+        tips: q.tips || '',
+        coreFormulas: q.coreFormulas || [],
+        alternateMethod: q.alternateMethod || undefined
+      };
+    });
 
     const session: SolverSession = {
       id: `solver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,

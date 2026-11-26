@@ -14,7 +14,7 @@ import {
 } from 'docx';
 import { saveAs } from 'file-saver';
 import { MathQuestion, TestSummary } from '../data/mockData';
-import { SolverSession, SolvedQuestionItem } from '../services/mathSolverService';
+import { SolverSession, SolvedQuestionItem, reconcileAnswerWithSolutionSteps } from '../services/mathSolverService';
 
 /**
  * Helper tách văn bản nhiều dòng thành các đoạn Paragraph độc lập trong Word
@@ -535,7 +535,12 @@ export async function exportTestToDocx(
                 new Paragraph({
                   children: [
                     new TextRun({ text: '🎯 ĐÁP ÁN ĐÚNG: ', bold: true, size: 21, color: '166534' }),
-                    new TextRun({ text: q.correctAnswer || 'Cần đối chiếu', bold: true, size: 23, color: '15803D' })
+                    new TextRun({ 
+                      text: reconcileAnswerWithSolutionSteps(q.correctAnswer || 'Cần đối chiếu', q.solutionSteps || []), 
+                      bold: true, 
+                      size: 23, 
+                      color: '15803D' 
+                    })
                   ]
                 })
               ]
@@ -912,7 +917,12 @@ export async function exportSolverSessionToDocx(
                 new Paragraph({
                   children: [
                     new TextRun({ text: '🎯 ĐÁP SỐ CUỐI CÙNG: ', bold: true, size: 22, color: '065F46' }),
-                    new TextRun({ text: q.finalAnswer, bold: true, size: 24, color: '047857' })
+                    new TextRun({ 
+                      text: reconcileAnswerWithSolutionSteps(q.finalAnswer, q.solutionSteps || []), 
+                      bold: true, 
+                      size: 24, 
+                      color: '047857' 
+                    })
                   ]
                 })
               ]
