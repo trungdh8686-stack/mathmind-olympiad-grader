@@ -164,10 +164,13 @@ export function getSolverSessionById(id: string): SolverSession | null {
 }
 
 const GEMINI_MODELS = [
+  'gemini-1.5-pro',
+  'gemini-pro-latest',
+  'gemini-3.1-pro-preview',
+  'gemini-2.5-pro',
   'gemini-3.8-flash',
   'gemini-3-flash-preview',
-  'gemini-flash-latest',
-  'gemini-3.1-pro-preview'
+  'gemini-flash-latest'
 ];
 
 /**

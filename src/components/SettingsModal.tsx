@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, User, ExternalLink, Save, Sparkles, Bot } from 'lucide-react';
+import { X, Key, User, ExternalLink, Save, Sparkles, Bot, CheckCircle2, AlertCircle, Loader2, Play } from 'lucide-react';
 import { TestSummary } from '../data/mockData';
 
 interface SettingsModalProps {
@@ -7,6 +7,11 @@ interface SettingsModalProps {
   onClose: () => void;
   summary: TestSummary;
   onUpdateSummary: (newSummary: Partial<TestSummary>) => void;
+}
+
+interface TestStatus {
+  state: 'idle' | 'testing' | 'success' | 'error';
+  message: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -24,6 +29,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [openAiApiKey, setOpenAiApiKey] = useState(() => localStorage.getItem('OPENAI_API_KEY') || '');
   const [isSaved, setIsSaved] = useState(false);
 
+  const [openAiTestStatus, setOpenAiTestStatus] = useState<TestStatus>({ state: 'idle', message: '' });
+  const [geminiTestStatus, setGeminiTestStatus] = useState<TestStatus>({ state: 'idle', message: '' });
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,6 +44,114 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const handleTestOpenAi = async () => {
+    const key = openAiApiKey.trim() || (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+    if (!key) {
+      setOpenAiTestStatus({
+        state: 'error',
+        message: 'Vui lòng dán khóa API OpenAI (sk-proj-... hoặc sk-...) trước khi kiểm tra.'
+      });
+      return;
+    }
+
+    setOpenAiTestStatus({
+      state: 'testing',
+      message: 'Đang kết nối tới máy chủ OpenAI để kiểm tra gói ChatGPT Plus...'
+    });
+
+    try {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` }
+      });
+      if (res.ok) {
+        setOpenAiTestStatus({
+          state: 'success',
+          message: 'Kết nối thành công! Đã xác thực API ChatGPT Plus (GPT-4o sẵn sàng hoạt động).'
+        });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errMsg = data?.error?.message || `Mã lỗi HTTP ${res.status}`;
+        setOpenAiTestStatus({
+          state: 'error',
+          message: `Lỗi kết nối OpenAI: ${errMsg}`
+        });
+      }
+    } catch (err: any) {
+      setOpenAiTestStatus({
+        state: 'error',
+        message: `Không thể kết nối máy chủ OpenAI: ${err.message}`
+      });
+    }
+  };
+
+  const handleTestGemini = async () => {
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    const key = geminiApiKey.trim() || envKey || '';
+    if (!key) {
+      setGeminiTestStatus({
+        state: 'error',
+        message: 'Vui lòng dán khóa API Google Gemini trước khi kiểm tra.'
+      });
+      return;
+    }
+
+    setGeminiTestStatus({
+      state: 'testing',
+      message: 'Đang kết nối tới Google AI Studio để kiểm tra Gemini Pro...'
+    });
+
+    const modelsToTest = [
+      'gemini-1.5-pro',
+      'gemini-pro-latest',
+      'gemini-3.1-pro-preview',
+      'gemini-2.5-pro',
+      'gemini-3.8-flash',
+      'gemini-3-flash-preview',
+      'gemini-flash-latest'
+    ];
+
+    let succeeded = false;
+    let successfulModel = '';
+    let lastError = '';
+
+    for (const m of modelsToTest) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: '1+1=' }] }] }),
+          signal: controller.signal
+        });
+        clearTimeout(tid);
+
+        if (res.ok) {
+          succeeded = true;
+          successfulModel = m;
+          break;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          lastError = errData?.error?.message || `HTTP ${res.status}`;
+        }
+      } catch (e: any) {
+        lastError = e.message;
+      }
+    }
+
+    if (succeeded) {
+      setGeminiTestStatus({
+        state: 'success',
+        message: `Kết nối thành công! Model ${successfulModel} (Google Gemini) đã sẵn sàng.`
+      });
+    } else {
+      setGeminiTestStatus({
+        state: 'error',
+        message: `Lỗi kết nối Gemini: ${lastError}`
+      });
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +191,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Cấu Hình Nền Tảng AI</h3>
-              <p className="text-xs text-slate-500">Hệ sinh thái ChatGPT Plus & Google Gemini</p>
+              <p className="text-xs text-slate-500">Hệ sinh thái ChatGPT Plus & Google Gemini Pro</p>
             </div>
           </div>
           <button
@@ -112,7 +228,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  OpenAI GPT-4o Plus, nhận diện chuẩn xác 100% không bỏ sót câu
+                  OpenAI GPT-4o Plus, tư duy logic Olympic chuẩn mực và nhận diện toàn diện
                 </p>
               </button>
 
@@ -128,14 +244,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
                     <Bot className="w-4 h-4 text-blue-600" />
-                    <span>Gemini AI (Google)</span>
+                    <span>Gemini Pro / Flash</span>
                   </span>
                   {aiEngine === 'gemini' && (
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  Gemini 3.5 Flash Vision, xử lý nhanh đa phương tiện
+                  Google Gemini Pro / Flash Vision, tốc độ cao và suy luận đa phương tiện
                 </p>
               </button>
             </div>
@@ -172,27 +288,66 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-3.5 h-3.5 text-emerald-600" />
-                <span>OpenAI / ChatGPT API Key:</span>
+                <span>OpenAI / ChatGPT Plus API Key:</span>
               </label>
-              <a
-                href="https://platform.openai.com/api-keys"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
-              >
-                <span>Lấy key ChatGPT</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestOpenAi}
+                  disabled={openAiTestStatus.state === 'testing'}
+                  className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {openAiTestStatus.state === 'testing' ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                      <span>Đang test...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3 fill-emerald-600 text-emerald-600" />
+                      <span>Kiểm tra kết nối</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <span>Lấy key</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
             </div>
             <input
               type="password"
               value={openAiApiKey}
-              onChange={(e) => setOpenAiApiKey(e.target.value)}
+              onChange={(e) => {
+                setOpenAiApiKey(e.target.value);
+                setOpenAiTestStatus({ state: 'idle', message: '' });
+              }}
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs"
               placeholder="Dán sk-proj-... hoặc sk-... của tài khoản ChatGPT Plus"
             />
+            {openAiTestStatus.state !== 'idle' && (
+              <div
+                className={`mt-2 p-2.5 rounded-xl text-xs flex items-start gap-2 ${
+                  openAiTestStatus.state === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : openAiTestStatus.state === 'testing'
+                    ? 'bg-slate-50 text-slate-700 border border-slate-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {openAiTestStatus.state === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />}
+                {openAiTestStatus.state === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+                {openAiTestStatus.state === 'testing' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0 mt-0.5" />}
+                <span className="leading-snug">{openAiTestStatus.message}</span>
+              </div>
+            )}
             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Dành cho Sếp đã có gói ChatGPT Plus / OpenAI để giải đề thi bằng GPT-4o chuẩn mực nhất.
+              Dành cho Sếp đã có tài khoản OpenAI / ChatGPT Plus để giải đề thi bằng GPT-4o chuẩn mực nhất.
             </p>
           </div>
 
@@ -201,27 +356,66 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-3.5 h-3.5 text-blue-600" />
-                <span>Google Gemini API Key:</span>
+                <span>Google Gemini Pro API Key:</span>
               </label>
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold"
-              >
-                <span>Lấy key miễn phí</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestGemini}
+                  disabled={geminiTestStatus.state === 'testing'}
+                  className="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {geminiTestStatus.state === 'testing' ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                      <span>Đang test...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3 fill-blue-600 text-blue-600" />
+                      <span>Kiểm tra kết nối</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <span>Lấy key Google</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
             </div>
             <input
               type="password"
               value={geminiApiKey}
-              onChange={(e) => setGeminiApiKey(e.target.value)}
+              onChange={(e) => {
+                setGeminiApiKey(e.target.value);
+                setGeminiTestStatus({ state: 'idle', message: '' });
+              }}
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
-              placeholder="Dán AIzaSy... để kích hoạt Gemini Vision"
+              placeholder="Dán AIzaSy... để kích hoạt Gemini Pro"
             />
+            {geminiTestStatus.state !== 'idle' && (
+              <div
+                className={`mt-2 p-2.5 rounded-xl text-xs flex items-start gap-2 ${
+                  geminiTestStatus.state === 'success'
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : geminiTestStatus.state === 'testing'
+                    ? 'bg-slate-50 text-slate-700 border border-slate-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {geminiTestStatus.state === 'success' && <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />}
+                {geminiTestStatus.state === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+                {geminiTestStatus.state === 'testing' && <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0 mt-0.5" />}
+                <span className="leading-snug">{geminiTestStatus.message}</span>
+              </div>
+            )}
             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Khóa API được lưu cục bộ an toàn trên trình duyệt của máy con, không gửi về bất kỳ máy chủ trung gian nào.
+              Hỗ trợ Gemini 1.5 Pro, Gemini Pro Latest và Gemini Flash Vision. Khóa được bảo mật trên trình duyệt của máy.
             </p>
           </div>
 

@@ -49,10 +49,13 @@ QUY TẮC CỰC KỲ QUAN TRỌNG:
 Trả về DUY NHẤT một mảng JSON các câu hỏi trong cặp dấu \`\`\`json [ ... ] \`\`\``;
 
   const modelsToTry = [
+    'gemini-1.5-pro',
+    'gemini-pro-latest',
+    'gemini-3.1-pro-preview',
+    'gemini-2.5-pro',
     'gemini-3.8-flash',
     'gemini-3-flash-preview',
-    'gemini-flash-latest',
-    'gemini-3.1-pro-preview'
+    'gemini-flash-latest'
   ];
 
   for (const model of modelsToTry) {
@@ -237,9 +240,10 @@ export async function gradeImagesWithAI(
   });
 
   const aiEngine = (localStorage.getItem('AI_ENGINE') as any) || 'chatgpt';
-  const openAiKey = (localStorage.getItem('OPENAI_API_KEY') || '').trim();
+  const openAiKey = (localStorage.getItem('OPENAI_API_KEY') || (import.meta as any).env?.VITE_OPENAI_API_KEY || '').trim();
+  const localGeminiKey = (localStorage.getItem('GEMINI_API_KEY') || '').trim();
   const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  const effectiveGeminiKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (envGeminiKey || '');
+  const effectiveGeminiKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (localGeminiKey || envGeminiKey || '');
 
   let rawExtractedQuestions: any[] = [];
   let usedEngine: 'chatgpt' | 'gemini' = 'gemini';
