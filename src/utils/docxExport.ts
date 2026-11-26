@@ -15,6 +15,7 @@ import {
 import { saveAs } from 'file-saver';
 import { MathQuestion, TestSummary } from '../data/mockData';
 import { SolverSession, SolvedQuestionItem, reconcileAnswerWithSolutionSteps } from '../services/mathSolverService';
+import { cleanMathText } from './textCleaner';
 
 /**
  * Helper tách văn bản nhiều dòng thành các đoạn Paragraph độc lập trong Word
@@ -32,7 +33,8 @@ function createMultilineParagraphs(
   } = {}
 ): Paragraph[] {
   if (!text) return [];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const cleaned = cleanMathText(text);
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return [];
 
   return lines.map((line, idx) => {
@@ -536,7 +538,7 @@ export async function exportTestToDocx(
                   children: [
                     new TextRun({ text: '🎯 ĐÁP ÁN ĐÚNG: ', bold: true, size: 21, color: '166534' }),
                     new TextRun({ 
-                      text: reconcileAnswerWithSolutionSteps(q.correctAnswer || 'Cần đối chiếu', q.solutionSteps || []), 
+                      text: cleanMathText(reconcileAnswerWithSolutionSteps(q.correctAnswer || 'Cần đối chiếu', q.solutionSteps || [])), 
                       bold: true, 
                       size: 23, 
                       color: '15803D' 
@@ -857,13 +859,13 @@ export async function exportSolverSessionToDocx(
         spacing: { before: 240, after: 80 },
         children: [
           new TextRun({
-            text: `Câu ${q.questionNumber}: ${q.title}`,
+            text: `Câu ${q.questionNumber}: ${cleanMathText(q.title).replace(/^Câu \d+:\s*/, '')}`,
             bold: true,
             size: 24,
             color: '1D4ED8'
           }),
           new TextRun({
-            text: `  [${q.category} • ${q.difficulty}]`,
+            text: `  [${cleanMathText(q.category)} • ${cleanMathText(q.difficulty)}]`,
             bold: true,
             size: 20,
             color: '6B7280'
@@ -879,7 +881,7 @@ export async function exportSolverSessionToDocx(
           spacing: { after: 60 },
           children: [
             new TextRun({ text: 'Đề bài (Tiếng Anh): ', bold: true, size: 20, color: '111827' }),
-            new TextRun({ text: q.textEn, bold: true, size: 20, color: '111827' })
+            new TextRun({ text: cleanMathText(q.textEn), bold: true, size: 20, color: '111827' })
           ]
         })
       );
@@ -892,13 +894,14 @@ export async function exportSolverSessionToDocx(
           spacing: { after: 120 },
           children: [
             new TextRun({ text: 'Dịch nghĩa (Tiếng Việt): ', bold: true, size: 20, color: '4B5563' }),
-            new TextRun({ text: q.textVi, italics: true, size: 20, color: '4B5563' })
+            new TextRun({ text: cleanMathText(q.textVi), italics: true, size: 20, color: '4B5563' })
           ]
         })
       );
     }
 
     // Final Answer box
+    const verifiedFinalAnswer = cleanMathText(reconcileAnswerWithSolutionSteps(q.finalAnswer, q.solutionSteps || []));
     const answerTable = new Table({
       width: { size: 9000, type: WidthType.DXA },
       borders: {
@@ -918,7 +921,7 @@ export async function exportSolverSessionToDocx(
                   children: [
                     new TextRun({ text: '🎯 ĐÁP SỐ CUỐI CÙNG: ', bold: true, size: 22, color: '065F46' }),
                     new TextRun({ 
-                      text: reconcileAnswerWithSolutionSteps(q.finalAnswer, q.solutionSteps || []), 
+                      text: verifiedFinalAnswer, 
                       bold: true, 
                       size: 24, 
                       color: '047857' 
@@ -948,7 +951,7 @@ export async function exportSolverSessionToDocx(
         new Paragraph({
           spacing: { after: 60 },
           children: [
-            new TextRun({ text: step, size: 20, color: '334155' })
+            new TextRun({ text: cleanMathText(step), size: 20, color: '334155' })
           ]
         })
       );
@@ -961,7 +964,7 @@ export async function exportSolverSessionToDocx(
           spacing: { before: 80, after: 60 },
           children: [
             new TextRun({ text: '💡 Bí kíp & Mẹo giải nhanh Olympic: ', bold: true, size: 20, color: 'B45309' }),
-            new TextRun({ text: q.tips, size: 20, color: '92400E' })
+            new TextRun({ text: cleanMathText(q.tips), size: 20, color: '92400E' })
           ]
         })
       );
@@ -974,7 +977,7 @@ export async function exportSolverSessionToDocx(
           spacing: { before: 60, after: 180 },
           children: [
             new TextRun({ text: '📐 Công thức áp dụng: ', bold: true, size: 20, color: '4338CA' }),
-            new TextRun({ text: q.coreFormulas.join(' • '), size: 20, color: '3730A3' })
+            new TextRun({ text: q.coreFormulas.map(f => cleanMathText(f)).join(' • '), size: 20, color: '3730A3' })
           ]
         })
       );

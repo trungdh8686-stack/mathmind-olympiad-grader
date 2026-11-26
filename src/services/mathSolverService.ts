@@ -46,32 +46,41 @@ export interface SolverChatMessage {
 
 const STORAGE_KEY = 'MATHMIND_SOLVER_SESSIONS';
 
+import { cleanMathText } from '../utils/textCleaner';
+
 /**
  * Intelligent Consistency Reconciler:
  * Detects and eliminates contradictions between top-level finalAnswer and the step-by-step calculation.
- * If the step-by-step arithmetic chain concludes with X (e.g. 2.600.000 đồng) but finalAnswer had Y (e.g. 5.200.000 đồng),
+ * If the step-by-step arithmetic chain concludes with X (e.g. 2.600.000 đồng, 36 đỉnh, 23 món)
+ * but finalAnswer had Y (e.g. 5.200.000 đồng, 45, 21),
  * this reconciler automatically corrects finalAnswer to match the verified step-by-step calculation.
  */
 export function reconcileAnswerWithSolutionSteps(finalAnswer: string, solutionSteps: string[]): string {
-  if (!solutionSteps || !Array.isArray(solutionSteps) || solutionSteps.length === 0) return finalAnswer || '';
-  if (!finalAnswer) return finalAnswer || '';
+  if (!solutionSteps || !Array.isArray(solutionSteps) || solutionSteps.length === 0) {
+    return cleanMathText(finalAnswer) || '';
+  }
 
-  const candidatesToCheck = [solutionSteps[solutionSteps.length - 1]];
-  if (solutionSteps.length > 1) candidatesToCheck.push(solutionSteps[solutionSteps.length - 2]);
+  const cleanedFinal = cleanMathText(finalAnswer) || '';
+  const cleanedSteps = solutionSteps.map(s => cleanMathText(s)).filter(Boolean);
 
-  for (const step of candidatesToCheck) {
+  if (cleanedSteps.length === 0) return cleanedFinal;
+
+  // Check all steps in reverse order (prioritizing the last concluding step)
+  const reversedSteps = [...cleanedSteps].reverse();
+
+  for (const step of reversedSteps) {
     if (!step) continue;
 
-    // Pattern 1: Division with remainder: "= [quotient] dư [remainder]" -> the answer is the quotient!
+    // Pattern 1: Division with remainder: "= [quotient] (?:dư|remainder) [remainder]" -> quotient is the answer!
     const divRemainderMatch = step.match(/=\s*([0-9.,]+)\s*(?:dư|remainder)\s*[0-9.,]+/i);
 
     // Pattern 2: Find all "= [number] [unit]?" in the step and take the LAST one (the final calculation result)
-    const eqMatches = [...step.matchAll(/=\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món)?/gi)];
+    const eqMatches = [...step.matchAll(/=\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món|đỉnh|cạnh|mặt)?/gi)];
     const lastEqMatch = eqMatches.length > 0 ? eqMatches[eqMatches.length - 1] : null;
 
-    // Pattern 3: Explicit conclusion indicators when no equation sign is present:
+    // Pattern 3: Explicit conclusion indicators:
     // "đáp số:", "lớn nhất là", "nhỏ nhất là", "mua được nhiều nhất là", "tối đa là", "tổng cộng là", "vậy ... là"
-    const conclusionMatch = step.match(/(?:đáp số|kết luận|lớn nhất là|nhỏ nhất là|số cần tìm là|mua được nhiều nhất(?: là)?|tối đa(?: là|=)?|kết quả(?: là|=)?|vậy.*?là|chi phí.*?là|đáp án.*?là|chính là|giá trị.*?là)\s*:?\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món)?/i);
+    const conclusionMatch = step.match(/(?:đáp số|kết luận|lớn nhất.*?là|nhỏ nhất.*?là|số cần tìm.*?là|mua được nhiều nhất(?: là)?|tối đa(?: là|=)?|kết quả(?: là|=)?|vậy.*?là|chi phí.*?là|đáp án.*?là|chính là|giá trị.*?là|tổng(?: số)?.*?là)\s*:?\s*([0-9.,]+)\s*(đồng|đ|VNĐ|đô la|\$|cm²|m²|dm²|mm²|cm|m|km|kg|g|học sinh|em|bạn|tuổi|giờ|phút|giây|câu|món quà|món|đỉnh|cạnh|mặt)?/i);
 
     const matched = divRemainderMatch || lastEqMatch || conclusionMatch;
     if (matched) {
@@ -79,21 +88,32 @@ export function reconcileAnswerWithSolutionSteps(finalAnswer: string, solutionSt
       const calculatedVal = matched[1].replace(/[.,]$/, '').trim();
       const unit = matched[2] 
         ? ` ${matched[2].trim()}` 
-        : (finalAnswer.includes('đồng') ? ' đồng' : (finalAnswer.includes('VNĐ') ? ' VNĐ' : (finalAnswer.includes('m²') ? ' m²' : (finalAnswer.includes('cm²') ? ' cm²' : ''))));
+        : (cleanedFinal.includes('đồng') ? ' đồng' : (cleanedFinal.includes('VNĐ') ? ' VNĐ' : (cleanedFinal.includes('m²') ? ' m²' : (cleanedFinal.includes('cm²') ? ' cm²' : (cleanedFinal.includes('đỉnh') ? ' đỉnh' : (cleanedFinal.includes('món') ? ' món' : ''))))));
       
-      const cleanFinalDigits = finalAnswer.replace(/[^0-9]/g, '');
+      const cleanFinalDigits = cleanedFinal.replace(/[^0-9]/g, '');
       const cleanCalcDigits = calculatedVal.replace(/[^0-9]/g, '');
 
       // If both contain numeric digits and they disagree, prioritize the verified step-by-step arithmetic chain!
       if (cleanFinalDigits && cleanCalcDigits && cleanFinalDigits !== cleanCalcDigits) {
-        console.warn(`[Auto-Reconcile] Corrected answer mismatch: "${finalAnswer}" -> "${calculatedVal}${unit}" based on step calculation.`);
+        console.warn(`[Auto-Reconcile] Corrected answer mismatch: "${cleanedFinal}" -> "${calculatedVal}${unit}" based on step calculation.`);
         return `${calculatedVal}${unit}`;
       }
-      break;
+      return cleanedFinal;
     }
   }
 
-  return finalAnswer;
+  // Fallback: Check if problem asks for sum of two quantities (e.g. vertices of 2 pyramids)
+  const pyramidAMatch = cleanedSteps.join(' ').match(/hình chóp A.*?(\d+)\s*(?:đỉnh)/i);
+  const pyramidBMatch = cleanedSteps.join(' ').match(/hình chóp B.*?(\d+)\s*(?:đỉnh)/i);
+  if (pyramidAMatch && pyramidBMatch) {
+    const sumVertices = parseInt(pyramidAMatch[1], 10) + parseInt(pyramidBMatch[1], 10);
+    if (!isNaN(sumVertices) && cleanedFinal !== String(sumVertices)) {
+      console.warn(`[Auto-Reconcile] Sum of two pyramids detected: ${pyramidAMatch[1]} + ${pyramidBMatch[1]} = ${sumVertices}`);
+      return `${sumVertices}`;
+    }
+  }
+
+  return cleanedFinal;
 }
 
 // Local storage session management
@@ -313,8 +333,20 @@ QUY TẮC BẮT BUỘC:
 3. QUY TẮC SỐNG CÒN VỀ TÍNH NHẤT QUÁN CỦA ĐÁP SỐ (COHERENCE & SELF-VERIFICATION):
    - "finalAnswer" BẮT BUỘC PHẢI TRÙNG KHỚP 100% VỚI PHÉP TÍNH VÀ KẾT QUẢ Ở BƯỚC CUỐI CÙNG TRONG "solutionSteps".
    - TUYỆT ĐỐI KHÔNG ĐƯỢC để bước giải tính ra một số (ví dụ 13m² x 200.000 = 2.600.000 đồng) mà "finalAnswer" lại ghi một số khác (ví dụ 5.200.000 đồng). Bất kỳ sự mâu thuẫn nào giữa lời giải và đáp số đều là lỗi sai nghiêm trọng!
-   - BẮT BUỘC TỰ ĐỐI CHIẾU TRƯỚC KHI XUẤT: Sau khi viết xong các bước giải, kiểm tra con số cuối cùng của bước cuối rồi điền CHÍNH XÁC con số đó vào "finalAnswer".
-   - Chú ý các bẫy thực tế: Ví dụ lưới sân tennis được đặt ở chính giữa sân thì phải căng ngang theo chiều rộng của sân (để chia đôi chiều dài), do đó chiều dài lưới phụ thuộc vào chiều rộng sân cộng thêm khoảng cách cọc hai bên.
+   - BẮT BUỘC TỰ ĐỐI CHIẾU TRƯỚC KHI XUẤT: Sau khi viết xong các bước giải, kiểm tra con số cuối cùng của bước cuối rồi điền CHÍNH XAC con số đó vào "finalAnswer".
+   - BÀI TOÁN PHÉP CHIA CÓ DƯ: Nếu bài toán hỏi "mua được nhiều nhất bao nhiêu", kết quả là THƯƠNG SỐ của phép chia, TUYỆT ĐỐI KHÔNG lấy số dư làm đáp số (ví dụ 550 : 23 = 23 dư 21 thì kết quả là 23 món quà, KHÔNG PHẢI 21)!
+   - BÀI TOÁN TÍNH TỔNG (ví dụ tổng số đỉnh 2 hình chóp): Bước cuối cùng BẮT BUỘC phải thực hiện phép cộng ra con số cụ thể (ví dụ 11 + 25 = 36 đỉnh), và "finalAnswer" phải ghi con số tổng cuối cùng đó (36), tuyệt đối không ghi dở dang!
+
+4. QUY TẮC CHÍNH TẢ & ĐỊNH DẠNG (NGHIÊM CẤM DÙNG LATEX):
+   - TUYỆT ĐỐI KHÔNG DÙNG ký hiệu LaTeX như $, $$, \\implies, \\times, \\overline{AB}, \\frac{a}{b}, \\text{...}.
+   - Toàn bộ công thức toán PHẢI DÙNG CHỮ THUẦN TÚY VÀ KÝ TỰ UNICODE:
+     + Dấu nhân: dùng '×' (không dùng *, không dùng \\times).
+     + Dấu suy ra: dùng '→' hoặc chữ 'suy ra' (không dùng \\implies, không dùng ->).
+     + Phép chia: dùng dấu ':' hoặc '/' (không dùng \\div).
+     + Số có hai chữ số: viết trực tiếp 'AB' (không viết \\overline{AB}).
+     + Số mũ: viết số mũ Unicode '²', '³' (không viết ^2, ^3).
+     + Đơn vị: viết 'cm²', 'm²', 'đồng', 'đô la'.
+   - Toàn bộ văn bản tiếng Việt phải chuẩn chính tả, có dấu đầy đủ 100%, không viết không dấu hay sai chính tả (viết đúng 'hình chóp', 'đỉnh', 'thập giác', 'kết luận').
 
 TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
 {
@@ -443,21 +475,22 @@ TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ THEO ĐỊNH DẠNG:
 
   if (parsed && parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
     const questionsList: SolvedQuestionItem[] = parsed.questions.map((q: any, idx: number) => {
-      const steps = Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''];
-      const rawAns = q.finalAnswer || '';
+      const rawSteps = Array.isArray(q.solutionSteps) ? q.solutionSteps : [q.explanation || ''];
+      const steps = rawSteps.map((s: string) => cleanMathText(s)).filter(Boolean);
+      const rawAns = cleanMathText(q.finalAnswer || '');
       const verifiedAns = reconcileAnswerWithSolutionSteps(rawAns, steps);
       return {
         questionNumber: q.questionNumber || idx + 1,
-        title: q.title || `Câu ${q.questionNumber || idx + 1}`,
-        textEn: q.textEn || '',
-        textVi: q.textVi || q.question || '',
-        category: q.category || 'Toán học',
-        difficulty: q.difficulty || 'Olympic / Học sinh giỏi',
-        finalAnswer: verifiedAns,
+        title: cleanMathText(q.title || `Câu ${q.questionNumber || idx + 1}`),
+        textEn: cleanMathText(q.textEn || ''),
+        textVi: cleanMathText(q.textVi || q.question || ''),
+        category: cleanMathText(q.category || 'Toán học'),
+        difficulty: (q.difficulty || 'Olympic / Học sinh giỏi') as any,
+        finalAnswer: cleanMathText(verifiedAns),
         solutionSteps: steps,
-        tips: q.tips || '',
-        coreFormulas: q.coreFormulas || [],
-        alternateMethod: q.alternateMethod || undefined
+        tips: cleanMathText(q.tips || ''),
+        coreFormulas: Array.isArray(q.coreFormulas) ? q.coreFormulas.map((f: string) => cleanMathText(f)) : [],
+        alternateMethod: q.alternateMethod ? cleanMathText(q.alternateMethod) : undefined
       };
     });
 
